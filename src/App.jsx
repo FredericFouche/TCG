@@ -1,8 +1,10 @@
-import CardPreview from "./components/CardPreview.jsx";
+import Header from "./layout/Header.jsx";
+import OpenPacks from "./components/OpenPacks.jsx";
 function App() {
   return (
     <>
-        <CardPreview />
+      <Header />
+        <OpenPacks />
     </>
   )
 }

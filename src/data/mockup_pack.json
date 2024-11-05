@@ -1,0 +1,18 @@
+{
+  "id": "pack_123",
+  "collectionName": "Base Set 2024",
+  "collectionImage": "/images/collections/base2024.jpg",
+  "totalCards": 10,
+  "cards": [
+    {
+      "id": "card_456",
+      "rarity": "common",
+      "order": 1
+    },
+    {
+      "id": "card_789",
+      "rarity": "rare",
+      "order": 2
+    }
+  ]
+}
