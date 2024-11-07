@@ -43,20 +43,43 @@ export class Dashboard {
 
     #render() {
         this.#container.innerHTML = `
-            <div class="dashboard">
-                <div class="stats-container">
-                    <div class="power-display">
+        <div class="dashboard">
+            <div class="dashboard-header">
+                <h1>Dashboard</h1>
+            </div>
+            
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-hand-pointer"></i>
+                    </div>
+                    <div class="stat-info">
                         <h2>Click Power</h2>
-                        <p>${this.#state.clickPower}</p>
+                        <p class="stat-value">${this.#state.clickPower} <span class="stat-unit">per click</span></p>
                     </div>
                 </div>
-                <div class="click-area">
-                    <button id="clickButton" class="main-click-button">
-                        Click Me!
-                    </button>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h2>Auto Click</h2>
+                        <p class="stat-value">${this.#state.autoClickPower} <span class="stat-unit">per second</span></p>
+                    </div>
                 </div>
             </div>
-        `;
+
+            <div class="click-area">
+                <button id="clickButton" class="main-click-button">
+                    <div class="click-button-content">
+                        <i class="fas fa-coins click-icon"></i>
+                        <span class="click-text">Click to Earn!</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    `;
     }
 
     #bindEvents() {
