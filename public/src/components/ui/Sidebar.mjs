@@ -6,9 +6,19 @@ export class Sidebar extends EventEmitter {
     #activeRoute = 'dashboard';
     #elements = {};
     #eventHandlers = new Map();
+    #menuItems = [
+        { route: 'dashboard', icon: 'fa-home', text: 'Dashboard' },
+        { route: 'shop', icon: 'fa-store', text: 'Boutique' },
+        { route: 'boosters', icon: 'fa-box-open', text: 'Boosters' },
+        { route: 'collection', icon: 'fa-layer-group', text: 'Collection' },
+        { route: 'market', icon: 'fa-shopping-cart', text: 'Marché' },
+        { route: 'autoclickers', icon: 'fa-robot', text: 'Auto Clickers' },
+        { route: 'achievements', icon: 'fa-trophy', text: 'Achievements' },
+        { route: 'stats', icon: 'fa-chart-line', text: 'Statistiques' }
+    ];
 
     constructor(containerId = 'sidebar') {
-        super(); // Appel du constructeur de EventEmitter
+        super();
         this.#elements.sidebar = document.getElementById(containerId);
         if (!this.#elements.sidebar) {
             throw new Error(`Container with id '${containerId}' not found`);
@@ -19,11 +29,21 @@ export class Sidebar extends EventEmitter {
     #init() {
         this.#createStructure();
         this.#bindEvents();
-        // Émettre un événement initial pour le dashboard
         this.emit('navigate', { route: this.#activeRoute });
     }
 
     #createStructure() {
+        const menuItemsHTML = this.#menuItems
+            .map(item => `
+                <li class="menu-item${item.route === this.#activeRoute ? ' active' : ''}" 
+                    data-route="${item.route}">
+                    <div class="menu-icon-container">
+                        <i class="fas ${item.icon}"></i>
+                    </div>
+                    <span class="menu-text">${item.text}</span>
+                </li>
+            `).join('');
+
         this.#elements.sidebar.innerHTML = `
             <div class="sidebar-header">
                 <span class="sidebar-title">TCG Game</span>
@@ -31,40 +51,7 @@ export class Sidebar extends EventEmitter {
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
-            <ul class="menu-list">
-                <li class="menu-item active" data-route="dashboard">
-                    <i class="fas fa-home"></i>
-                    <span class="menu-text">Dashboard</span>
-                </li>
-                <li class="menu-item" data-route="shop">
-                    <i class="fas fa-store"></i>
-                    <span class="menu-text">Boutique</span>
-                </li>
-                <li class="menu-item" data-route="boosters">
-                    <i class="fas fa-box-open"></i>
-                    <span class="menu-text">Boosters</span>
-                </li>
-                <li class="menu-item" data-route="collection">
-                    <i class="fas fa-layer-group"></i>
-                    <span class="menu-text">Collection</span>
-                </li>
-                <li class="menu-item" data-route="market">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span class="menu-text">Marché</span>
-                </li>
-                <li class="menu-item" data-route="autoclickers">
-                    <i class="fas fa-robot"></i>
-                    <span class="menu-text">Auto Clickers</span>
-                </li>
-                <li class="menu-item" data-route="achievements">
-                    <i class="fas fa-trophy"></i>
-                    <span class="menu-text">Achievements</span>
-                </li>
-                <li class="menu-item" data-route="stats">
-                    <i class="fas fa-chart-line"></i>
-                    <span class="menu-text">Statistiques</span>
-                </li>
-            </ul>
+            <ul class="menu-list">${menuItemsHTML}</ul>
         `;
 
         this.#elements.toggleBtn = this.#elements.sidebar.querySelector('.toggle-btn');
@@ -103,20 +90,14 @@ export class Sidebar extends EventEmitter {
         this.#isCollapsed = !this.#isCollapsed;
         this.#elements.sidebar.classList.toggle('collapsed');
         this.#elements.mainContent?.classList.toggle('expanded');
-
-        // Utiliser l'EventEmitter au lieu de CustomEvent
         this.emit('toggle', { isCollapsed: this.#isCollapsed });
     }
 
     navigateTo(route) {
         this.#activeRoute = route;
-
-        // Met à jour la classe active
         this.#elements.menuItems.forEach(item => {
             item.classList.toggle('active', item.dataset.route === route);
         });
-
-        // Utiliser l'EventEmitter au lieu de CustomEvent
         this.emit('navigate', { route: this.#activeRoute });
     }
 
