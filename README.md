@@ -5,9 +5,8 @@ Un jeu de collection de cartes à collectionner (TCG) basé sur un système de c
 ## 🎮 Caractéristiques
 
 ### Core Systems
-- **Système de Monnaie Double**
+- **Système de Monnaie**
   - Monnaie principale ("Coins") générée par les clics et générateurs
-  - Monnaie premium ("Gems") pour les fonctionnalités spéciales
   - Multiplicateurs et bonus temporaires
 
 - **Collection de Cartes**
