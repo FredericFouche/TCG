@@ -1,11 +1,14 @@
-// src/components/ui/Sidebar.js
-export class Sidebar {
+// src/components/ui/Sidebar.mjs
+import { EventEmitter } from '../../utils/EventEmitter.mjs';
+
+export class Sidebar extends EventEmitter {
     #isCollapsed = false;
     #activeRoute = 'dashboard';
     #elements = {};
     #eventHandlers = new Map();
 
     constructor(containerId = 'sidebar') {
+        super(); // Appel du constructeur de EventEmitter
         this.#elements.sidebar = document.getElementById(containerId);
         if (!this.#elements.sidebar) {
             throw new Error(`Container with id '${containerId}' not found`);
@@ -16,6 +19,8 @@ export class Sidebar {
     #init() {
         this.#createStructure();
         this.#bindEvents();
+        // Émettre un événement initial pour le dashboard
+        this.emit('navigate', { route: this.#activeRoute });
     }
 
     #createStructure() {
@@ -62,7 +67,6 @@ export class Sidebar {
             </ul>
         `;
 
-        // Cache DOM elements for better performance
         this.#elements.toggleBtn = this.#elements.sidebar.querySelector('.toggle-btn');
         this.#elements.menuItems = this.#elements.sidebar.querySelectorAll('.menu-item');
         this.#elements.mainContent = document.getElementById('mainContent');
@@ -100,11 +104,8 @@ export class Sidebar {
         this.#elements.sidebar.classList.toggle('collapsed');
         this.#elements.mainContent?.classList.toggle('expanded');
 
-        // Émet un événement personnalisé
-        const event = new CustomEvent('sidebar:toggle', {
-            detail: { isCollapsed: this.#isCollapsed }
-        });
-        document.dispatchEvent(event);
+        // Utiliser l'EventEmitter au lieu de CustomEvent
+        this.emit('toggle', { isCollapsed: this.#isCollapsed });
     }
 
     navigateTo(route) {
@@ -115,11 +116,8 @@ export class Sidebar {
             item.classList.toggle('active', item.dataset.route === route);
         });
 
-        // Émet un événement de navigation
-        const event = new CustomEvent('sidebar:navigate', {
-            detail: { route: this.#activeRoute }
-        });
-        document.dispatchEvent(event);
+        // Utiliser l'EventEmitter au lieu de CustomEvent
+        this.emit('navigate', { route: this.#activeRoute });
     }
 
     getState() {
