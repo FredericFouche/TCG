@@ -89,18 +89,6 @@ TCG/
 - Throttling des sauvegardes
 - Gestion optimisée de la mémoire
 
-## Topics GitHub Suggérés
-- `trading-card-game`
-- `idle-game`
-- `clicker-game`
-- `javascript`
-- `es6-modules`
-- `game-development`
-- `web-game`
-- `vanilla-js`
-- `event-driven`
-- `collection-game`
-
 ## État Actuel
 - ✅ Architecture de base mise en place
 - ✅ Système de navigation (Sidebar) fonctionnel
