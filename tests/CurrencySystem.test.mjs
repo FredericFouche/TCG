@@ -1,6 +1,7 @@
-// tests/CurrencySystem.test.mjs
+// tests/index.test.mjs
 
-import { CurrencySystem } from '../core/currency/CurrencySystem.mjs';
+import {CurrencySystem} from '../public/src/core/currency/CurrencySystem.mjs';
+import {AutoClickManager} from '../public/src/features/auto-clicker/AutoClickManager.mjs';
 
 class TestRunner {
     #tests = [];
@@ -22,7 +23,7 @@ class TestRunner {
     }
 
     test(name, fn) {
-        this.#tests.push({ name, fn });
+        this.#tests.push({name, fn});
     }
 
     expect(actual) {
@@ -64,7 +65,7 @@ class TestRunner {
         console.log(`\n🧪 Running test suite: ${this.testSuiteName}`);
         console.log('=======================================');
 
-        for (const { name, fn } of this.#tests) {
+        for (const {name, fn} of this.#tests) {
             try {
                 // Setup
                 if (this.#beforeEach) await this.#beforeEach();
@@ -91,63 +92,57 @@ class TestRunner {
 }
 
 // Tests pour CurrencySystem
-const runner = new TestRunner('CurrencySystem Tests');
+const currencyRunner = new TestRunner('CurrencySystem Tests');
+currencyRunner.beforeEach(() => localStorage.clear());
 
-// Setup
-runner.beforeEach(() => {
-    // Clear localStorage before each test
-    localStorage.clear();
-});
-
-// Tests
-runner.test('should initialize with default values', () => {
+currencyRunner.test('should initialize with default values', () => {
     const system = new CurrencySystem();
-    runner.expect(system.currency).toBe(0);
-    runner.expect(system.baseClickValue).toBe(1);
-    runner.expect(system.multiplier).toBe(1);
+    currencyRunner.expect(system.currency).toBe(0);
+    currencyRunner.expect(system.baseClickValue).toBe(1);
+    currencyRunner.expect(system.multiplier).toBe(1);
 });
 
-runner.test('should add currency correctly', () => {
+currencyRunner.test('should add currency correctly', () => {
     const system = new CurrencySystem();
     const success = system.addCurrency(100);
-    runner.expect(success).toBeTrue();
-    runner.expect(system.currency).toBe(100);
+    currencyRunner.expect(success).toBeTrue();
+    currencyRunner.expect(system.currency).toBe(100);
 });
 
-runner.test('should not add negative currency', () => {
+currencyRunner.test('should not add negative currency', () => {
     const system = new CurrencySystem(100);
     const success = system.addCurrency(-50);
-    runner.expect(success).toBeFalse();
-    runner.expect(system.currency).toBe(100);
+    currencyRunner.expect(success).toBeFalse();
+    currencyRunner.expect(system.currency).toBe(100);
 });
 
-runner.test('should remove currency correctly', () => {
+currencyRunner.test('should remove currency correctly', () => {
     const system = new CurrencySystem(100);
     const success = system.removeCurrency(50);
-    runner.expect(success).toBeTrue();
-    runner.expect(system.currency).toBe(50);
+    currencyRunner.expect(success).toBeTrue();
+    currencyRunner.expect(system.currency).toBe(50);
 });
 
-runner.test('should not remove more currency than available', () => {
+currencyRunner.test('should not remove more currency than available', () => {
     const system = new CurrencySystem(100);
     const success = system.removeCurrency(150);
-    runner.expect(success).toBeFalse();
-    runner.expect(system.currency).toBe(100);
+    currencyRunner.expect(success).toBeFalse();
+    currencyRunner.expect(system.currency).toBe(100);
 });
 
-runner.test('should handle click with multiplier', () => {
+currencyRunner.test('should handle click with multiplier', () => {
     const system = new CurrencySystem(0, 10); // baseClickValue = 10
     system.addMultiplier(1); // multiplier = 2
     system.handleClick();
-    runner.expect(system.currency).toBe(20); // 10 * 2
+    currencyRunner.expect(system.currency).toBe(20); // 10 * 2
 });
 
-runner.test('should format currency correctly', () => {
+currencyRunner.test('should format currency correctly', () => {
     const system = new CurrencySystem(1234567);
-    runner.expect(system.formattedCurrency).toBe('1.2M ¤');
+    currencyRunner.expect(system.formattedCurrency).toBe('1.2M ¤');
 });
 
-runner.test('should emit events on currency update', () => {
+currencyRunner.test('should emit events on currency update', () => {
     const system = new CurrencySystem();
     let eventFired = false;
     let eventData = null;
@@ -159,29 +154,131 @@ runner.test('should emit events on currency update', () => {
 
     system.addCurrency(100);
 
-    runner.expect(eventFired).toBeTrue();
-    runner.expect(eventData.newValue).toBe(100);
-    runner.expect(eventData.gained).toBe(100);
+    currencyRunner.expect(eventFired).toBeTrue();
+    currencyRunner.expect(eventData.newValue).toBe(100);
+    currencyRunner.expect(eventData.gained).toBe(100);
 });
 
-runner.test('should save and load correctly', () => {
+currencyRunner.test('should save and load correctly', () => {
     const system = new CurrencySystem(1000);
     system.addMultiplier(2);
 
     // Save
     const saveSuccess = system.save();
-    runner.expect(saveSuccess).toBeTrue();
+    currencyRunner.expect(saveSuccess).toBeTrue();
 
     // Create new instance and load
     const newSystem = new CurrencySystem();
     const loadSuccess = newSystem.load();
 
-    runner.expect(loadSuccess).toBeTrue();
-    runner.expect(newSystem.currency).toBe(1000);
-    runner.expect(newSystem.multiplier).toBe(3); // 1 (base) + 2 (added)
+    currencyRunner.expect(loadSuccess).toBeTrue();
+    currencyRunner.expect(newSystem.currency).toBe(1000);
+    currencyRunner.expect(newSystem.multiplier).toBe(3); // 1 (base) + 2 (added)
 });
 
-// Run all tests
-runner.run().then(() => {
-    console.log('Testing completed!');
+// Exécuter les tests de CurrencySystem puis ceux de AutoClickManager
+currencyRunner.run().then(() => {
+    // Tests pour AutoClickManager
+    const autoClickRunner = new TestRunner('AutoClickManager Tests');
+    autoClickRunner.beforeEach(() => localStorage.clear());
+
+    autoClickRunner.test('should initialize correctly', () => {
+        const currency = new CurrencySystem(1000);
+        const manager = new AutoClickManager(currency);
+
+        autoClickRunner.expect(manager.totalProductionPerSecond).toBe(0);
+        autoClickRunner.expect(manager.generators.length).toBe(0);
+    });
+
+    autoClickRunner.test('should add generator correctly', () => {
+        const currency = new CurrencySystem(1000);
+        const manager = new AutoClickManager(currency);
+
+        const success = manager.addGenerator('gen1', 10, 100);
+        autoClickRunner.expect(success).toBeTrue();
+        autoClickRunner.expect(manager.generators.length).toBe(1);
+    });
+
+    autoClickRunner.test('should not add duplicate generator', () => {
+        const currency = new CurrencySystem(1000);
+        const manager = new AutoClickManager(currency);
+
+        manager.addGenerator('gen1', 10, 100);
+        const success = manager.addGenerator('gen1', 10, 100);
+        autoClickRunner.expect(success).toBeFalse();
+    });
+
+    autoClickRunner.test('should buy generator successfully', () => {
+        const currency = new CurrencySystem(1000);
+        const manager = new AutoClickManager(currency);
+
+        manager.addGenerator('gen1', 10, 100);
+        const success = manager.buyGenerator('gen1');
+
+        autoClickRunner.expect(success).toBeTrue();
+        autoClickRunner.expect(currency.currency).toBe(900); // 1000 - 100
+        autoClickRunner.expect(manager.totalProductionPerSecond).toBe(10);
+    });
+
+    autoClickRunner.test('should not buy generator without enough currency', () => {
+        const currency = new CurrencySystem(50);
+        const manager = new AutoClickManager(currency);
+
+        manager.addGenerator('gen1', 10, 100);
+        const success = manager.buyGenerator('gen1');
+
+        autoClickRunner.expect(success).toBeFalse();
+        autoClickRunner.expect(currency.currency).toBe(50);
+    });
+
+    autoClickRunner.test('should calculate increasing costs', () => {
+        const currency = new CurrencySystem(1000);
+        const manager = new AutoClickManager(currency);
+
+        manager.addGenerator('gen1', 10, 100);
+        manager.buyGenerator('gen1');
+        const initialBalance = currency.currency;
+        manager.buyGenerator('gen1');
+
+        // Coût second achat = 100 * (1.15 ^ 1) = 115
+        const expectedCost = Math.floor(100 * Math.pow(1.15, 1));
+        autoClickRunner.expect(currency.currency).toBe(initialBalance - expectedCost);
+    });
+
+    autoClickRunner.test('should produce currency over time', async () => {
+        const currency = new CurrencySystem(1000);
+        const manager = new AutoClickManager(currency);
+
+        manager.addGenerator('gen1', 10, 100);
+        manager.buyGenerator('gen1');
+
+        const initialBalance = currency.currency;
+
+        // Attendre 1.1 secondes (un peu plus qu'un tick)
+        await new Promise(resolve => setTimeout(resolve, 1100));
+
+        autoClickRunner.expect(currency.currency).toBeGreaterThan(initialBalance);
+    });
+
+    autoClickRunner.test('should save and load correctly', () => {
+        const currency = new CurrencySystem(1000);
+        const manager = new AutoClickManager(currency);
+
+        manager.addGenerator('gen1', 10, 100);
+        manager.buyGenerator('gen1');
+
+        manager.save();
+
+        const newCurrency = new CurrencySystem(1000);
+        const newManager = new AutoClickManager(newCurrency);
+        newManager.load();
+
+        autoClickRunner.expect(newManager.totalProductionPerSecond).toBe(10);
+        autoClickRunner.expect(newManager.generators.length).toBe(1);
+    });
+
+    // Exécuter les tests de AutoClickManager
+    autoClickRunner.run().then(() => {
+        console.log('All tests completed!');
+    });
 });
