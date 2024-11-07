@@ -1,6 +1,15 @@
+// index.mjs
 import { Sidebar } from './components/ui/Sidebar.mjs';
 import { Dashboard } from './components/ui/Dashboard.mjs';
 import { Shop } from './components/ui/Shop.mjs';
+import { CurrencySystem } from './core/currency/CurrencySystem.mjs';
+import { CurrencyDisplay } from './components/ui/CurrencyDisplay.mjs';
+
+// Création des systèmes globaux
+const currencySystem = new CurrencySystem();
+currencySystem.load();
+
+window.currencySystem = currencySystem;
 
 // Instance de la sidebar
 const sidebar = new Sidebar();
@@ -17,7 +26,8 @@ sidebar.on('navigate', (event) => {
     const { route } = event;
     switch(route) {
         case 'dashboard':
-            currentModule = new Dashboard();
+            // Passer le currencySystem au Dashboard
+            currentModule = new Dashboard(currencySystem);
             currentModule.init();
             break;
         case 'shop':
@@ -29,26 +39,7 @@ sidebar.on('navigate', (event) => {
     }
 });
 
-const mainContent = document.getElementById('mainContent');
+const currencyDisplay = new CurrencyDisplay(currencySystem);
+currencyDisplay.mount();
 
-// Écoute l'événement de toggle de la sidebar
-sidebar.on('toggle', ({ isCollapsed }) => {
-    if (isCollapsed) {
-        mainContent.classList.add('expanded');
-    } else {
-        mainContent.classList.remove('expanded');
-    }
-});
-
-sidebar.on('shop', () => {
-
-    console.log('shop');
-
-    if (currentModule?.destroy) {
-        currentModule.destroy();
-    }
-
-    currentModule = new Shop();
-    mainContent.innerHTML = '';
-    mainContent.appendChild(currentModule.render());
-});
+currencySystem.load();

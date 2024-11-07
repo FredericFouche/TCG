@@ -1,23 +1,42 @@
 // src/modules/Dashboard.mjs
+import {CurrencySystem} from "../../core/currency/CurrencySystem.mjs";
+
 export class Dashboard {
     #container;
     #state;
+    #currencyUpdateCallback;
+    #clickHandler;
 
-    constructor(containerId = 'mainContent') {
-        this.#container = document.getElementById(containerId);
-        if (!this.#container) {
-            throw new Error('Container not found');
-        }
-
-        // État initial du dashboard
+    constructor() {
         this.#state = {
             currency: 0,
             clickPower: 1,
             autoClickPower: 0
         };
+
+        this.#currencyUpdateCallback = (data) => {
+            this.#state.currency = data.newValue;
+            this.#updateUI();
+        };
+
+        // Préparation de la référence pour le click handler
+        this.#clickHandler = () => {
+            window.currencySystem?.handleClick();
+        };
     }
 
     init() {
+        this.#container = document.getElementById('mainContent');
+        if (!this.#container) {
+            throw new Error('Container not found');
+        }
+
+        // Une seule souscription aux événements
+        window.currencySystem?.on(
+            CurrencySystem.EVENTS.CURRENCY_UPDATED,
+            this.#currencyUpdateCallback
+        );
+
         this.#render();
         this.#bindEvents();
     }
@@ -26,10 +45,6 @@ export class Dashboard {
         this.#container.innerHTML = `
             <div class="dashboard">
                 <div class="stats-container">
-                    <div class="currency-display">
-                        <h2>Currency</h2>
-                        <p id="currencyAmount">${this.#state.currency}</p>
-                    </div>
                     <div class="power-display">
                         <h2>Click Power</h2>
                         <p>${this.#state.clickPower}</p>
@@ -47,13 +62,8 @@ export class Dashboard {
     #bindEvents() {
         const clickButton = document.getElementById('clickButton');
         if (clickButton) {
-            clickButton.addEventListener('click', () => this.#handleClick());
+            clickButton.addEventListener('click', this.#clickHandler);
         }
-    }
-
-    #handleClick() {
-        this.#state.currency += this.#state.clickPower;
-        this.#updateUI();
     }
 
     #updateUI() {
@@ -63,11 +73,15 @@ export class Dashboard {
         }
     }
 
-    // Pour le nettoyage quand on quitte le dashboard
     destroy() {
+        window.currencySystem?.off(
+            CurrencySystem.EVENTS.CURRENCY_UPDATED,
+            this.#currencyUpdateCallback
+        );
+
         const clickButton = document.getElementById('clickButton');
         if (clickButton) {
-            clickButton.removeEventListener('click', this.#handleClick);
+            clickButton.removeEventListener('click', this.#clickHandler);
         }
     }
 }
