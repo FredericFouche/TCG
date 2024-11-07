@@ -1,13 +1,11 @@
-import { EventEmitter } from '../../utils/EventEmitter.mjs';
-
-export class Sidebar extends EventEmitter {
+// src/components/ui/Sidebar.js
+export class Sidebar {
     #isCollapsed = false;
     #activeRoute = 'dashboard';
     #elements = {};
     #eventHandlers = new Map();
 
     constructor(containerId = 'sidebar') {
-        super();
         this.#elements.sidebar = document.getElementById(containerId);
         if (!this.#elements.sidebar) {
             throw new Error(`Container with id '${containerId}' not found`);
@@ -117,8 +115,11 @@ export class Sidebar extends EventEmitter {
             item.classList.toggle('active', item.dataset.route === route);
         });
 
-        // Émet l'événement de navigation
-        this.emit('navigate', { route: this.#activeRoute });
+        // Émet un événement de navigation
+        const event = new CustomEvent('sidebar:navigate', {
+            detail: { route: this.#activeRoute }
+        });
+        document.dispatchEvent(event);
     }
 
     getState() {

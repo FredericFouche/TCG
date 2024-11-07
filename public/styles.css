@@ -1,4 +1,5 @@
-/* Sidebar Styles */
+/* Sidebar styles */
+/* src/styles/components/sidebar.css */
 .sidebar {
     width: 250px;
     height: 100vh;
@@ -70,7 +71,6 @@
     white-space: nowrap;
 }
 
-/* Ajout d'un conteneur principal pour le contenu */
 .main-content {
     margin-left: 250px;
     padding: 1rem;
