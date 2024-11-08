@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tests TCG</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #testResults {
+            white-space: pre;
+            font-family: monospace;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-suite {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-left: 3px solid #333;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+<h1>Tests TCG</h1>
+<div id="testResults">Les résultats des tests apparaîtront ici...</div>
+<div id="mainContent"></div>
+
+<script type="module">
+    // Redirection console
+    const resultsDiv = document.getElementById('testResults');
+    const originalLog = console.log;
+
+    console.log = function(...args) {
+        originalLog.apply(console, args);
+        const text = args.join(' ');
+
+        // Ajouter des classes pour le styling
+        let line = text;
+        if (text.includes('✅')) {
+            line = `<span class="success">${text}</span>`;
+        } else if (text.includes('❌')) {
+            line = `<span class="error">${text}</span>`;
+        }
+
+        resultsDiv.innerHTML += line + '\n';
+    };
+
+    // Import tous les tests
+    import './CurrencySystem.test.mjs';
+</script>
+</body>
+</html>

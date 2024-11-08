@@ -1,37 +1,162 @@
-import { Sidebar } from './components/ui/Sidebar.mjs';
-import { Dashboard } from './components/ui/Dashboard.mjs';
+import {Sidebar} from './components/ui/Sidebar.mjs';
+import {Dashboard} from './components/ui/Dashboard.mjs';
+import {Shop} from './components/ui/Shop.mjs';
+import {CurrencySystem} from './core/currency/CurrencySystem.mjs';
+import {CurrencyDisplay} from './components/ui/CurrencyDisplay.mjs';
+import {AutoClickDisplay} from "./components/ui/AutoClickDisplay.mjs";
+import {AutoClickManager} from "./features/auto-clicker/AutoClickManager.mjs";
+import {NotificationSystem} from './utils/NotificationSystem.mjs';
+import {SaveManager} from './utils/SaveManager.mjs';
+import {Toast} from './components/ui/Toast.mjs';
+import {AchievementDisplay} from "./components/ui/AchievementDisplay.mjs";
+import {AchievementSystem} from './features/achievements/AchievementSystem.mjs';
+import {TutorialManager} from './features/tutorial/TutorialManager.mjs';
 
-// Instance de la sidebar
-const sidebar = new Sidebar();
-let currentModule = null;
+// Initialisation des systèmes dans l'ordre de dépendance
+const initializeSystems = () => {
+    // 1. Système de notification en premier
+    console.log('🔔 Initialisation du système de notification');
+    const notificationSystem = NotificationSystem.getInstance();
+    window.notificationSystem = notificationSystem;
 
-// Écoute des événements de navigation
-sidebar.on('navigate', (event) => {
-    // Nettoyage du module précédent si existe
-    if (currentModule?.destroy) {
-        currentModule.destroy();
-    }
+    // 2. Configuration des notifications toast avec logs
+    console.log('🎯 Configuration du listener de notifications');
+    const notificationHandler = ({type, message}) => {
+        console.log('📬 Notification reçue:', { type, message });
+        Toast.show(message, type);
+    };
+    notificationSystem.on(NotificationSystem.EVENTS.SHOW_NOTIFICATION, notificationHandler);
 
-    // Gestion de la navigation
-    const { route } = event;
-    switch(route) {
-        case 'dashboard':
-            currentModule = new Dashboard();
-            currentModule.init();
-            break;
-        // autres routes à venir...
-        default:
-            console.log(`Route ${route} non implémentée`);
-    }
-});
+    // Vérification que le listener est bien attaché
+    console.log('🔍 Nombre de listeners:',
+        notificationSystem.listenerCount(NotificationSystem.EVENTS.SHOW_NOTIFICATION));
 
-const mainContent = document.getElementById('mainContent');
+    // Test du système de notification
+    console.log('🧪 Test du système de notification');
+    setTimeout(() => {
+        notificationSystem.showSuccess('Système de notification initialisé');
+    }, 100);
 
-// Écoute l'événement de toggle de la sidebar
-sidebar.on('toggle', ({ isCollapsed }) => {
-    if (isCollapsed) {
-        mainContent.classList.add('expanded');
+    // 3. Systèmes de base
+    const currencySystem = new CurrencySystem();
+    const autoClickManager = new AutoClickManager(currencySystem);
+    const achievementSystem = new AchievementSystem();
+
+    // 4. Système de sauvegarde (dépend des autres systèmes)
+    const saveManager = new SaveManager(notificationSystem);
+
+    // 5. Exposition globale des systèmes
+    window.currencySystem = currencySystem;
+    window.autoClickManager = autoClickManager;
+    window.achievementSystem = achievementSystem;
+    window.saveManager = saveManager;
+
+    return {
+        notificationSystem,
+        currencySystem,
+        autoClickManager,
+        achievementSystem,
+        saveManager
+    };
+};
+
+const initializeGenerators = () => {
+    autoClickManager.addGenerator('Basic', 1, 10, 'Générateur basique');
+    autoClickManager.addGenerator('Advanced', 8, 100, 'Générateur avancé');
+    autoClickManager.addGenerator('Pro', 47, 1000, 'Générateur pro');
+    autoClickManager.addGenerator('Elite', 260, 10000, 'Générateur élite');
+};
+
+// Configuration de la sauvegarde automatique
+const setupAutoSave = (saveManager) => {
+    setInterval(() => {
+        saveManager.saveAll();
+    }, 60000);
+
+    window.addEventListener('beforeunload', () => {
+        saveManager.saveAll();
+    });
+};
+
+// Configuration de la sidebar et gestion des routes
+const setupSidebar = () => {
+    const sidebar = new Sidebar();
+    let currentModule = null;
+
+    sidebar.on('navigate', (event) => {
+        if (currentModule?.destroy) {
+            currentModule.destroy();
+        }
+
+        const {route} = event;
+        switch (route) {
+            case 'dashboard':
+                currentModule = new Dashboard(currencySystem);
+                currentModule.init();
+                if (!localStorage.getItem('hasVisitedBefore')) {
+                    setTimeout(() => {
+                        const tutorial = new TutorialManager();
+                        window.tutorialManager = tutorial;
+                        tutorial.start();
+                    }, 500);
+                    localStorage.setItem('hasVisitedBefore', 'true');
+                }
+                break;
+            case 'shop':
+                currentModule = new Shop();
+                currentModule.init();
+                break;
+            case 'autoclickers':
+                currentModule = new AutoClickDisplay();
+                currentModule.init();
+                break;
+            case 'achievements':
+                currentModule = new AchievementDisplay();
+                currentModule.init();
+                break;
+            default:
+                console.log(`Route ${route} non implémentée`);
+        }
+    });
+
+    sidebar.on('tutorial-requested', () => {
+        if (window.tutorialManager) {
+            window.tutorialManager.reset();
+        } else {
+            const tutorial = new TutorialManager();
+            window.tutorialManager = tutorial;
+            tutorial.start();
+        }
+    });
+
+    return sidebar;
+};
+
+// Initialisation de l'application
+const initializeApp = () => {
+    // 1. Initialiser les systèmes de base
+    const systems = initializeSystems();
+
+    // 2. Charger les données ou initialiser les générateurs
+    if (systems.saveManager.hasSaveData()) {
+        console.log('Chargement des données sauvegardées...');
+        systems.saveManager.loadAll();
     } else {
-        mainContent.classList.remove('expanded');
+        console.log('Première visite, initialisation des générateurs...');
+        initializeGenerators();
     }
-});
+
+    // 3. Configuration de la sauvegarde
+    setupAutoSave(systems.saveManager);
+
+    // 4. Initialisation de l'interface
+    const currencyDisplay = new CurrencyDisplay(systems.currencySystem);
+    currencyDisplay.mount();
+
+    // 5. Configuration et démarrage de la sidebar
+    const sidebar = setupSidebar();
+    sidebar.emit('navigate', {route: 'dashboard'});
+};
+
+// Démarrage de l'application
+initializeApp();

@@ -49,7 +49,7 @@ $files = @(
     "src/core/booster/BoosterSystem.js",
     "src/features/auto-clicker/AutoClickManager.js",
     "src/features/market/Market.js",
-    "src/features/achievements/AchievementSystem.js",
+    "src/features/achievements/AchievementSystem.mjs",
     "src/features/stats/StatsManager.js",
     "src/data/cards/Card.js",
     "src/data/save/SaveManager.js",
