@@ -1,4 +1,5 @@
 import {AutoClickManager} from "../../features/auto-clicker/AutoClickManager.mjs";
+import {NotificationSystem} from "../../utils/NotificationSystem.mjs";
 
 export class AutoClickDisplay {
     #container;
@@ -6,14 +7,17 @@ export class AutoClickDisplay {
     #autoClickManager;
     #productionUpdateCallback;
     #generatorBoughtCallback;
+    #notificationSystem;
 
     constructor() {
         this.#state = {
             totalProduction: 0,
-            generators: [] // Liste des générateurs et leurs états
+            generators: []
         };
 
-        // Callbacks pour les événements
+        this.#notificationSystem = NotificationSystem.getInstance();
+
+        // Vos callbacks existants...
         this.#productionUpdateCallback = (data) => {
             this.#state.totalProduction = data.production;
             this.#state.generators = data.generators;
@@ -21,9 +25,11 @@ export class AutoClickDisplay {
         };
 
         this.#generatorBoughtCallback = (data) => {
-            // Mise à jour du state avec les nouvelles données
             this.#state.generators = this.#autoClickManager.generators;
-            this.#render(); // Re-render complet pour mettre à jour l'UI
+            this.#render();
+
+            // Notification de succès après un achat
+            this.#notificationSystem.showSuccess(`Générateur ${data.id} amélioré au niveau ${data.level} !`);
         };
     }
 
@@ -60,7 +66,7 @@ export class AutoClickDisplay {
     #render() {
         this.#container.innerHTML = `
             <div class="autoclicker-container">
-                <h1>Auto Clickers</h1>
+                <h1 class="autoclicker-title">Auto Clickers</h1>
                 <div class="production-total">
                     Production par seconde : ${this.#state.totalProduction}
                 </div>
@@ -69,14 +75,6 @@ export class AutoClickDisplay {
                 </div>
             </div>
         `;
-    }
-
-    #updateUI() {
-        // Mise à jour de l'interface quand l'état change
-        const productionElement = this.#container.querySelector('.production-total');
-        if (productionElement) {
-            productionElement.textContent = `Production par seconde : ${this.#state.totalProduction}`;
-        }
     }
 
     destroy() {
@@ -95,15 +93,15 @@ export class AutoClickDisplay {
         return this.#state.generators.map(generator => `
         <div class="generator-card" data-generator-id="${generator.id}">
             <div class="generator-info">
-                <h3>Générateur ${generator.id}</h3>
-                <p>Niveau : ${generator.level}</p>
-                <p>Production : ${generator.currentProduction}/sec</p>
+                <h3 class="generator-title">Générateur ${generator.id}</h3>
+                <p class="generator-desc">Niveau : ${generator.level}</p>
+                <p class="generator-prod">Production : ${generator.currentProduction}/sec</p>
             </div>
             <div class="generator-actions">
                 <button class="buy-generator-btn" 
                         data-generator-id="${generator.id}"
                         data-cost="${this.#calculateNextCost(generator)}">
-                    Améliorer (${this.#calculateNextCost(generator)} coins)
+                    Améliorer (${this.#calculateNextCost(generator)} )
                 </button>
             </div>
         </div>
@@ -111,23 +109,48 @@ export class AutoClickDisplay {
     }
 
     #bindEvents() {
-        const buyButtons = this.#container.querySelectorAll('.buy-generator-btn');
-
-        buyButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
+        this.#container.addEventListener('click', (e) => {
+            if (e.target.classList.contains('buy-generator-btn')) {
                 const generatorId = e.target.dataset.generatorId;
+                const cost = parseInt(e.target.dataset.cost);
 
                 const success = this.#autoClickManager.buyGenerator(generatorId);
 
                 if (!success) {
-                    button.classList.add('error');
-                    setTimeout(() => button.classList.remove('error'), 500);
+                    e.target.classList.add('error');
+                    setTimeout(() => e.target.classList.remove('error'), 500);
+
+                    // Notification d'erreur
+                    this.#notificationSystem.showError(
+                        `Pas assez de ressources ! (Coût: ${cost})`
+                    );
                 }
-            });
+            }
         });
     }
 
     #calculateNextCost(generator) {
         return Math.floor(generator.baseCost * Math.pow(1.15, generator.level));
+    }
+
+    #updateUI() {
+        const productionElement = this.#container.querySelector('.production-total');
+        if (productionElement) {
+            productionElement.textContent = `Production par seconde : ${this.#state.totalProduction}`;
+        }
+
+        // Mettre à jour chaque générateur
+        this.#state.generators.forEach(generator => {
+            const card = this.#container.querySelector(`[data-generator-id="${generator.id}"]`);
+            if (card) {
+                card.querySelector('.generator-desc').textContent = `Niveau : ${generator.level}`;
+                card.querySelector('.generator-prod').textContent = `Production : ${generator.currentProduction}/sec`;
+
+                const button = card.querySelector('.buy-generator-btn');
+                const nextCost = this.#calculateNextCost(generator);
+                button.dataset.cost = nextCost;
+                button.textContent = `Améliorer (${nextCost})`;
+            }
+        });
     }
 }

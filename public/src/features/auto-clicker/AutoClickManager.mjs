@@ -4,6 +4,7 @@ export class AutoClickManager extends EventEmitter {
     static EVENTS = {
         GENERATOR_BOUGHT: 'generator:bought',
         GENERATOR_UPGRADED: 'generator:upgraded',
+        GENERATOR_ADDED: 'generator:added',
         TICK: 'generator:tick'
     };
 
@@ -23,16 +24,6 @@ export class AutoClickManager extends EventEmitter {
         this.#generators = new Map();
         this.#isRunning = false;
         this.#tickInterval = null;
-
-        // Structure d'un générateur:
-        // {
-        //     id: string,
-        //     level: number,
-        //     baseProduction: number,
-        //     baseCost: number,
-        //     currentProduction: number,
-        //     lastPurchaseCost: number
-        // }
     }
 
     // Getters
@@ -60,28 +51,45 @@ export class AutoClickManager extends EventEmitter {
         };
 
         this.#generators.set(id, generator);
+
+        // Émettre l'événement d'ajout du générateur
+        this.emit(AutoClickManager.EVENTS.GENERATOR_ADDED, { generator });
+
         return true;
     }
 
     buyGenerator(id) {
         const generator = this.#generators.get(id);
-        if (!generator) return false;
-
-        const cost = this.#calculateUpgradeCost(generator);
-
-        if (!this.#currencySystem.removeCurrency(cost)) {
+        if (!generator) {
+            console.error(`Generator ${id} not found`);
             return false;
         }
 
+        const cost = this.#calculateUpgradeCost(generator);
+
+        // Vérifier si le joueur peut dépenser
+        if (!this.#currencySystem.canSpend?.(cost)) {
+            if (!this.#currencySystem.removeCurrency?.(cost)) {
+                return false;
+            }
+        } else {
+            if (!this.#currencySystem.spend?.(cost)) {
+                return false;
+            }
+        }
+
+        // Mettre à jour le générateur
         generator.level += 1;
         generator.lastPurchaseCost = cost;
         generator.currentProduction = this.#calculateProduction(generator);
 
+        // Émettre l'événement d'achat
         this.emit(AutoClickManager.EVENTS.GENERATOR_BOUGHT, {
             id,
             level: generator.level,
             cost,
-            production: generator.currentProduction
+            production: generator.currentProduction,
+            generator // Ajouter le générateur complet pour faciliter les mises à jour UI
         });
 
         if (!this.#isRunning) {
@@ -110,7 +118,8 @@ export class AutoClickManager extends EventEmitter {
     // Méthodes de sauvegarde
     save() {
         const saveData = {
-            generators: Array.from(this.#generators.entries())
+            generators: Array.from(this.#generators.entries()),
+            isRunning: this.#isRunning
         };
 
         try {
@@ -130,10 +139,15 @@ export class AutoClickManager extends EventEmitter {
             const data = JSON.parse(savedData);
             this.#generators = new Map(data.generators);
 
-            // Redémarrer la production si des générateurs sont actifs
-            if (this.totalProductionPerSecond > 0) {
+            // Redémarrer la production si nécessaire
+            if (data.isRunning || this.totalProductionPerSecond > 0) {
                 this.start();
             }
+
+            // Émettre un événement pour chaque générateur chargé
+            this.generators.forEach(generator => {
+                this.emit(AutoClickManager.EVENTS.GENERATOR_ADDED, { generator });
+            });
 
             return true;
         } catch (error) {
@@ -147,22 +161,27 @@ export class AutoClickManager extends EventEmitter {
         const totalProduction = this.totalProductionPerSecond;
 
         if (totalProduction > 0) {
-            this.#currencySystem.addCurrency(totalProduction);
+            // Support des deux méthodes possibles d'ajout de monnaie
+            if (this.#currencySystem.addCurrency) {
+                this.#currencySystem.addCurrency(totalProduction);
+            } else if (this.#currencySystem.add) {
+                this.#currencySystem.add(totalProduction);
+            }
 
+            // Émettre l'événement de tick avec toutes les informations nécessaires
             this.emit(AutoClickManager.EVENTS.TICK, {
                 production: totalProduction,
-                generators: this.generators
+                generators: this.generators,
+                timestamp: Date.now()
             });
         }
     }
 
     #calculateUpgradeCost(generator) {
-        // Formule: baseCost * (1.15 ^ level)
         return Math.floor(generator.baseCost * Math.pow(1.15, generator.level));
     }
 
     #calculateProduction(generator) {
-        // Formule: baseProduction * level
         return generator.baseProduction * generator.level;
     }
 }

@@ -6,6 +6,8 @@ import {CurrencySystem} from './core/currency/CurrencySystem.mjs';
 import {CurrencyDisplay} from './components/ui/CurrencyDisplay.mjs';
 import {AutoClickDisplay} from "./components/ui/AutoClickDisplay.mjs";
 import {AutoClickManager} from "./features/auto-clicker/AutoClickManager.mjs";
+import { NotificationSystem } from './utils/NotificationSystem.mjs';
+import { Toast } from './components/ui/Toast.mjs';
 
 const currencySystem = new CurrencySystem();
 currencySystem.load();
@@ -13,8 +15,19 @@ currencySystem.load();
 const autoClickManager = new AutoClickManager(currencySystem);
 autoClickManager.load();
 
+const notificationSystem = NotificationSystem.getInstance();
+
+// add generators
+autoClickManager.addGenerator('Basic', 1, 10, 1);
+autoClickManager.addGenerator('Advanced', 10, 100, 10);
+autoClickManager.addGenerator('Pro', 100, 1000, 100);
+
 window.currencySystem = currencySystem;
 window.autoClickManager = autoClickManager;
+
+notificationSystem.on(NotificationSystem.EVENTS.SHOW_NOTIFICATION, ({ type, message }) => {
+    Toast.show(message, type);
+});
 
 const sidebar = new Sidebar();
 let currentModule = null;

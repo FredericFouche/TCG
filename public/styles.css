@@ -207,13 +207,6 @@ html, body {
 
 /* Pour le responsive */
 @media (max-width: 768px) {
-    .main-content {
-        margin-left: 0;
-    }
-
-    .main-content.expanded {
-        margin-left: 0;
-    }
 }
 
 /* Shop items styles */
@@ -335,7 +328,7 @@ html, body {
     }
 }
 
-@media (max-width: var(--breakpoint-mobile)) {
+@media (max-width: 768px) {
     .shop-content {
         height: -webkit-fill-available;
         padding: var(--spacing-md);
@@ -430,7 +423,8 @@ html, body {
 
 @media (max-width: 768px) {
     .currency-display {
-        top: 0.5rem;
+        bottom: 1rem;
+        top: auto;
         right: 0.5rem;
         font-size: 1rem;
         padding: 0.4rem 0.8rem;
@@ -569,5 +563,166 @@ html, body {
 
     .main-click-button {
         padding: 1.25rem 2.5rem;
+    }
+}
+
+/* Auto-clicker Container */
+.autoclicker-container {
+    padding: var(--spacing-md);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--border-radius-md);
+}
+
+.autoclicker-title {
+    font-size: var(--title-font-size);
+    font-weight: var(--title-font-weight);
+    line-height: var(--title-line-height);
+    margin-bottom: var(--spacing-lg);
+    color: var(--color-text-primary);
+
+    /* Optimisation du rendu du texte pour mobile */
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.production-total {
+    background-color: var(--color-accent-secondary);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    margin-bottom: var(--spacing-lg);
+    font-size: var(--font-size-lg);
+
+    /* Ombre avec performance optimisée */
+    box-shadow: var(--shadow-md);
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+.generators-list {
+    display: grid;
+    gap: var(--spacing-md);
+    width: 100%;
+
+    /* Grille responsive */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+
+    /* Optimisation du scrolling */
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Generator Card */
+.generator-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background-color: var(--color-accent-secondary);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+
+    /* Optimisations de performance */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+
+    /* Animation optimisée */
+    transition: transform var(--transition-fast);
+    will-change: transform;
+}
+
+.generator-card:active {
+    transform: scale(0.98);
+}
+
+/* Info Section */
+.generator-info {
+    flex: 1;
+}
+
+.generator-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text-primary);
+}
+
+.generator-desc,
+.generator-prod {
+    font-size: var(--font-size-md);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+/* Actions Section */
+.generator-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.buy-generator-btn {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--color-accent-primary);
+    color: var(--color-text-primary);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    cursor: pointer;
+
+    /* Optimisations tactiles */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+
+    /* Animation optimisée */
+    transition: transform var(--transition-fast),
+    background-color var(--transition-fast);
+    will-change: transform, background-color;
+}
+
+.buy-generator-btn:active {
+    transform: scale(0.95);
+}
+
+/* État désactivé */
+.buy-generator-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--color-hover);
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .autoclicker-container {
+        padding: var(--spacing-sm);
+    }
+
+    .generators-list {
+        grid-template-columns: 1fr;
+    }
+
+    .generator-card {
+        margin-bottom: var(--spacing-sm);
+    }
+
+    /* Ajustements pour le tactile */
+    .buy-generator-btn {
+        min-height: 44px; /* Taille minimale recommandée pour les touches tactiles */
+        padding: var(--spacing-md);
+    }
+}
+
+/* Optimisations pour Safari */
+@supports (-webkit-touch-callout: none) {
+    .generator-card {
+        /* Évite les problèmes de rendu sur Safari iOS */
+        -webkit-transform: translateZ(0);
+    }
+
+    .buy-generator-btn {
+        /* Désactive le comportement de survol par défaut sur iOS */
+        -webkit-tap-highlight-color: transparent;
     }
 }
