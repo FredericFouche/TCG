@@ -1,0 +1,94 @@
+classDiagram
+    class Card {
+        -id: string
+        -name: string
+        -rarity: string
+        -baseValue: number
+        -image: string
+        -description: string
+        -acquiredDate: Date
+        -isLocked: boolean
+        -amount: number
+        +getCurrentValue()
+        +lock()
+        +unlock()
+        +addCopy()
+        +removeCopy()
+        +sell()
+        +toJSON()
+        +clone()
+    }
+
+    class CardSystem {
+        -cards: Map~string, Card~
+        -eventEmitter: EventEmitter
+        +addCard(card: Card)
+        +removeCard(cardId: string)
+        +getCard(cardId: string)
+        +getAllCards()
+        +save()
+        +load()
+        +emitCardUpdate()
+    }
+
+    class CardDisplay {
+        -cardSystem: CardSystem
+        -container: HTMLElement
+        -eventEmitter: EventEmitter
+        +render()
+        -handleCardClick()
+        -handleLockToggle()
+        -handleSellCard()
+        -updateDisplay()
+    }
+
+    class Booster {
+        -id: string
+        -name: string
+        -description: string
+        -cost: number
+        -cardCount: number
+        -rarityWeights: Map
+        +open()
+        +getCardCount()
+        +getCost()
+        +getRarityDistribution()
+    }
+
+    class BoosterSystem {
+        -boosters: Map~string, Booster~
+        -cardSystem: CardSystem
+        -currencySystem: CurrencySystem
+        -eventEmitter: EventEmitter
+        +registerBooster(booster: Booster)
+        +openBooster(boosterId: string)
+        +canAffordBooster(boosterId: string)
+        +getBooster(boosterId: string)
+        -generateCards(count: number, weights: Map)
+        -handleBoosterOpen()
+    }
+
+    class BoosterDisplay {
+        -boosterSystem: BoosterSystem
+        -container: HTMLElement
+        -eventEmitter: EventEmitter
+        +render()
+        -handleBoosterClick()
+        -handleBoosterOpen()
+        -showOpeningAnimation()
+        -updateDisplay()
+    }
+
+    CardSystem -- Card : manages
+    CardDisplay --> CardSystem : observes
+    BoosterSystem --> CardSystem : uses
+    BoosterSystem -- Booster : manages
+    BoosterDisplay --> BoosterSystem : observes
+    BoosterSystem --> CurrencySystem : uses
+
+    note for Card "Représente une carte individuelle\navec ses propriétés et méthodes"
+    note for CardSystem "Gère la collection de cartes\net leur persistance"
+    note for CardDisplay "Affiche les cartes et gère\nles interactions utilisateur"
+    note for Booster "Définit un type de booster\net ses probabilités"
+    note for BoosterSystem "Gère l'ouverture des boosters\net la génération de cartes"
+    note for BoosterDisplay "Affiche les boosters disponibles\net gère les animations"

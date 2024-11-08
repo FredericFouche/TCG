@@ -5,7 +5,6 @@ export class AutoClickDisplay {
     #container;
     #state;
     #autoClickManager;
-    #productionUpdateCallback;
     #generatorBoughtCallback;
     #notificationSystem;
 
@@ -16,20 +15,18 @@ export class AutoClickDisplay {
         };
 
         this.#notificationSystem = NotificationSystem.getInstance();
+        this.#autoClickManager = window.autoClickManager;
 
-        // Vos callbacks existants...
         this.#productionUpdateCallback = (data) => {
             this.#state.totalProduction = data.production;
-            this.#state.generators = data.generators;
+            this.#state.generators = this.#autoClickManager.generators;
             this.#updateUI();
         };
 
-        this.#generatorBoughtCallback = (data) => {
+        this.#generatorBoughtCallback = ({generator}) => {
             this.#state.generators = this.#autoClickManager.generators;
-            this.#render();
-
-            // Notification de succès après un achat
-            this.#notificationSystem.showSuccess(`Générateur ${data.id} amélioré au niveau ${data.level} !`);
+            this.#updateUI();
+            this.#notificationSystem.showSuccess(`Générateur ${generator.id} amélioré au niveau ${generator.level} !`);
         };
     }
 
@@ -39,73 +36,115 @@ export class AutoClickDisplay {
             throw new Error('Container not found');
         }
 
-        // Correction de la casse
         this.#autoClickManager = window.autoClickManager;
         if (!this.#autoClickManager) {
             throw new Error('AutoClickManager not found in window');
         }
 
-        // Initialisation du state avec les générateurs existants
+
+        this.#state.totalProduction = this.#autoClickManager.totalProductionPerSecond;
         this.#state.generators = this.#autoClickManager.generators;
 
-        // Souscription aux événements
-        this.#autoClickManager.on(
-            AutoClickManager.EVENTS.TICK,
-            this.#productionUpdateCallback
-        );
 
-        this.#autoClickManager.on(
-            AutoClickManager.EVENTS.GENERATOR_BOUGHT,
-            this.#generatorBoughtCallback
-        );
+        this.#autoClickManager.on(AutoClickManager.EVENTS.TICK, this.#productionUpdateCallback);
+        this.#autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_BOUGHT, this.#generatorBoughtCallback);
+        this.#autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_ADDED, (data) => {
+            this.#state.generators = this.#autoClickManager.generators;
+            this.#updateUI();
+        });
+        this.#autoClickManager.on(AutoClickManager.EVENTS.PRODUCTION_UPDATED, this.#productionUpdateCallback);
 
         this.#render();
         this.#bindEvents();
     }
 
     #render() {
+        const generatorsHtml = this.#renderGenerators();
+
         this.#container.innerHTML = `
             <div class="autoclicker-container">
                 <h1 class="autoclicker-title">Auto Clickers</h1>
                 <div class="production-total">
-                    Production par seconde : ${this.#state.totalProduction}
+                    Production par seconde : ${this.#formatNumber(this.#state.totalProduction)}
                 </div>
                 <div class="generators-list">
-                    ${this.#renderGenerators()}
+                    ${generatorsHtml}
                 </div>
             </div>
         `;
     }
 
-    destroy() {
-        // Nettoyage des événements à la destruction
-        this.#autoClickManager?.off(
-            AutoClickManager.EVENTS.TICK,
-            this.#productionUpdateCallback
-        );
-    }
-
     #renderGenerators() {
-        if (!this.#state.generators.length) {
+        const generators = this.#state.generators;
+
+        if (!generators || generators.length === 0) {
             return '<p>Aucun générateur disponible</p>';
         }
 
-        return this.#state.generators.map(generator => `
-        <div class="generator-card" data-generator-id="${generator.id}">
-            <div class="generator-info">
-                <h3 class="generator-title">Générateur ${generator.id}</h3>
-                <p class="generator-desc">Niveau : ${generator.level}</p>
-                <p class="generator-prod">Production : ${generator.currentProduction}/sec</p>
+        return generators.map(generator => `
+            <div class="generator-card" data-generator-id="${generator.id}">
+                <div class="generator-info">
+                    <h3 class="generator-title">${generator.id}</h3>
+                    <p class="generator-level">Niveau : ${generator.level}</p>
+                    <p class="generator-desc">${generator.description || ''}</p>
+                    <p class="generator-prod">Production : ${this.#formatNumber(generator.currentProduction)}/sec</p>
+                </div>
+                <div class="generator-actions">
+                    <button class="buy-generator-btn" 
+                            data-generator-id="${generator.id}"
+                            data-cost="${this.#calculateNextCost(generator)}">
+                        Améliorer (${this.#formatNumber(this.#calculateNextCost(generator))} ¤)
+                    </button>
+                </div>
             </div>
-            <div class="generator-actions">
-                <button class="buy-generator-btn" 
-                        data-generator-id="${generator.id}"
-                        data-cost="${this.#calculateNextCost(generator)}">
-                    Améliorer (${this.#calculateNextCost(generator)})
-                </button>
-            </div>
-        </div>
-    `).join('');
+        `).join('');
+    }
+
+    #formatNumber(number) {
+        if (number === undefined || number === null || isNaN(number)) {
+            return this.#formatNumber(this.#state.totalProduction || 0);
+        }
+
+        const num = Number(number);
+        if (isNaN(num)) {
+            return this.#formatNumber(this.#state.totalProduction || 0);
+        }
+
+        if (num < 1000) {
+            return num.toFixed(0);
+        }
+
+        const suffixes = ['', 'K', 'M', 'B', 'T'];
+        const magnitude = Math.floor(Math.log10(num) / 3);
+        const scaled = num / Math.pow(1000, magnitude);
+        return `${scaled.toFixed(1)}${suffixes[Math.min(magnitude, suffixes.length - 1)]}`;
+    }
+
+    #updateUI() {
+        const productionElement = this.#container.querySelector('.production-total');
+        if (productionElement) {
+            const production = this.#state.totalProduction;
+            productionElement.textContent = `Production par seconde : ${this.#formatNumber(production)}`;
+        }
+
+        this.#state.generators.forEach(generator => {
+            const card = this.#container.querySelector(`[data-generator-id="${generator.id}"]`);
+            if (card) {
+                const level = generator.level;
+                const production = generator.currentProduction;
+                const nextCost = this.#calculateNextCost(generator);
+
+                card.querySelector('.generator-level').textContent = `Niveau : ${level}`;
+                card.querySelector('.generator-prod').textContent =
+                    `Production : ${this.#formatNumber(production)}/sec`;
+
+                const button = card.querySelector('.buy-generator-btn');
+                if (button) {
+                    button.dataset.cost = nextCost;
+                    button.textContent = `Améliorer (${this.#formatNumber(nextCost)} ¤)`;
+                }
+            }
+        });
     }
 
     #bindEvents() {
@@ -114,43 +153,42 @@ export class AutoClickDisplay {
                 const generatorId = e.target.dataset.generatorId;
                 const cost = parseInt(e.target.dataset.cost);
 
-                const success = this.#autoClickManager.buyGenerator(generatorId);
-
-                if (!success) {
+                if (!window.currencySystem.canSpend(cost)) {
                     e.target.classList.add('error');
                     setTimeout(() => e.target.classList.remove('error'), 500);
+                    this.#notificationSystem.showError(`Pas assez de ressources ! (Coût: ${this.#formatNumber(cost)} ¤)`);
+                    return;
+                }
 
-                    // Notification d'erreur
-                    this.#notificationSystem.showError(
-                        `Pas assez de ressources ! (Coût: ${cost})`
-                    );
+                const success = this.#autoClickManager.buyGenerator(generatorId);
+                if (!success) {
+                    this.#notificationSystem.showError('Erreur lors de l\'achat du générateur');
                 }
             }
         });
     }
 
+    #productionUpdateCallback = (data) => {
+        const newProduction = data?.production;
+        if (typeof newProduction === 'number' && !isNaN(newProduction)) {
+            this.#state.totalProduction = newProduction;
+        }
+
+        const newGenerators = this.#autoClickManager.generators;
+        if (Array.isArray(newGenerators) && newGenerators.length > 0) {
+            this.#state.generators = newGenerators;
+        }
+
+        this.#updateUI();
+    };
+
     #calculateNextCost(generator) {
         return Math.floor(generator.baseCost * Math.pow(1.15, generator.level));
     }
 
-    #updateUI() {
-        const productionElement = this.#container.querySelector('.production-total');
-        if (productionElement) {
-            productionElement.textContent = `Production par seconde : ${this.#state.totalProduction}`;
-        }
-
-        // Mettre à jour chaque générateur
-        this.#state.generators.forEach(generator => {
-            const card = this.#container.querySelector(`[data-generator-id="${generator.id}"]`);
-            if (card) {
-                card.querySelector('.generator-desc').textContent = `Niveau : ${generator.level}`;
-                card.querySelector('.generator-prod').textContent = `Production : ${generator.currentProduction}/sec`;
-
-                const button = card.querySelector('.buy-generator-btn');
-                const nextCost = this.#calculateNextCost(generator);
-                button.dataset.cost = nextCost;
-                button.textContent = `Améliorer (${nextCost})`;
-            }
-        });
+    destroy() {
+        this.#autoClickManager?.off(AutoClickManager.EVENTS.TICK, this.#productionUpdateCallback);
+        this.#autoClickManager?.off(AutoClickManager.EVENTS.GENERATOR_BOUGHT, this.#generatorBoughtCallback);
+        this.#autoClickManager?.off(AutoClickManager.EVENTS.PRODUCTION_UPDATED, this.#productionUpdateCallback);
     }
 }
