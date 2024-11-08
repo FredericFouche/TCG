@@ -8,7 +8,9 @@ import {AutoClickManager} from "./features/auto-clicker/AutoClickManager.mjs";
 import {NotificationSystem} from './utils/NotificationSystem.mjs';
 import {Toast} from './components/ui/Toast.mjs';
 import {AchievementDisplay} from "./components/ui/AchievementDisplay.mjs";
-import {AchievementSystem} from './features/achievements/AchievementSystem.mjs'; // Ajout de l'import
+import {AchievementSystem} from './features/achievements/AchievementSystem.mjs';
+import { TutorialManager } from './features/tutorial/TutorialManager.mjs';
+
 
 const currencySystem = new CurrencySystem();
 currencySystem.load();
@@ -49,6 +51,14 @@ sidebar.on('navigate', (event) => {
         case 'dashboard':
             currentModule = new Dashboard(currencySystem);
             currentModule.init();
+            if (!localStorage.getItem('hasVisitedBefore')) {
+                setTimeout(() => {
+                    const tutorial = new TutorialManager();
+                    window.tutorialManager = tutorial;
+                    tutorial.start();
+                }, 500);
+                localStorage.setItem('hasVisitedBefore', 'true');
+            }
             break;
         case 'shop':
             currentModule = new Shop();
@@ -67,14 +77,24 @@ sidebar.on('navigate', (event) => {
     }
 });
 
-// Affichage global de la monnaie
 const currencyDisplay = new CurrencyDisplay(currencySystem);
 currencyDisplay.mount();
 
 currencySystem.load();
 
-
 setInterval(() => {
     const achievementSave = window.achievementSystem.save();
     localStorage.setItem('achievements', JSON.stringify(achievementSave));
 }, 60000);
+
+sidebar.emit('navigate', {route: 'dashboard'});
+
+sidebar.on('tutorial-requested', () => {
+    if (window.tutorialManager) {
+        window.tutorialManager.reset();
+    } else {
+        const tutorial = new TutorialManager();
+        window.tutorialManager = tutorial;
+        tutorial.start();
+    }
+});
