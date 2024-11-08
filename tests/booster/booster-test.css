@@ -1,0 +1,77 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 20px;
+    background: #f0f0f0;
+}
+
+.controls {
+    margin-bottom: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.booster-display {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.card {
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card.common { border-left: 4px solid #9e9e9e; }
+.card.uncommon { border-left: 4px solid #4caf50; }
+.card.rare { border-left: 4px solid #2196f3; }
+.card.epic { border-left: 4px solid #9c27b0; }
+.card.legendary { border-left: 4px solid #ffc107; }
+
+.stats, .test-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 8px 16px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+button:hover {
+    background: #45a049;
+}
+
+button:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+}
+
+.test-log {
+    background: #f8f8f8;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
+    white-space: pre-wrap;
+}
+
+.test-log .success { color: #4CAF50; }
+.test-log .error { color: #f44336; }
+.test-group { margin-left: 20px; }
