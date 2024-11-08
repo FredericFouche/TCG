@@ -1,97 +1,175 @@
+// Booster.mjs
 export class Booster {
-    #id;
-    #name;
-    #price;
-    #cardCount;
-    #rarityDistribution;
-    #cards = [];
+    static TYPES = {
+        BASIC: 'basic',
+        PREMIUM: 'premium',
+        SPECIAL: 'special'
+    };
 
-    constructor(id, name, price, cardCount, rarityDistribution) {
-        this.#id = id;
-        this.#name = name;
-        this.#price = price;
-        this.#cardCount = cardCount;
-        this.#rarityDistribution = rarityDistribution;
+    static CONFIGS = {
+        [Booster.TYPES.BASIC]: {
+            cardCount: 5,
+            cost: 100,
+            weights: {
+                common: 70,
+                uncommon: 20,
+                rare: 8,
+                epic: 1.8,
+                legendary: 0.2
+            }
+        },
+        [Booster.TYPES.PREMIUM]: {
+            cardCount: 10,
+            cost: 250,
+            weights: {
+                common: 60,
+                uncommon: 25,
+                rare: 10,
+                epic: 4,
+                legendary: 1
+            }
+        },
+        [Booster.TYPES.SPECIAL]: {
+            cardCount: 5,
+            cost: 500,
+            weights: {
+                common: 0,
+                uncommon: 50,
+                rare: 30,
+                epic: 15,
+                legendary: 5
+            }
+        }
+    };
+
+    #id;
+    #type;
+    #purchaseDate;
+    #opened;
+    #cards;
+
+    /**
+     * @param {string} type - Type du booster (basic, premium, special)
+     * @throws {Error} Si le type est invalide
+     */
+    constructor(type) {
+        if (!Booster.CONFIGS[type]) {
+            throw new Error(`Type de booster invalide: ${type}`);
+        }
+
+        this.#id = crypto.randomUUID();
+        this.#type = type;
+        this.#purchaseDate = new Date();
+        this.#opened = false;
+        this.#cards = null;
     }
 
+    /**
+     * Marque le booster comme ouvert et stocke ses cartes
+     * @param {Array<Card>} cards - Cartes obtenues
+     * @throws {Error} Si le booster est déjà ouvert
+     */
+    setCards(cards) {
+        if (this.#opened) {
+            throw new Error('Ce booster a déjà été ouvert');
+        }
+
+        const config = Booster.CONFIGS[this.#type];
+        if (cards.length !== config.cardCount) {
+            throw new Error(`Nombre de cartes incorrect. Attendu: ${config.cardCount}, Reçu: ${cards.length}`);
+        }
+
+        this.#cards = cards;
+        this.#opened = true;
+    }
+
+    /**
+     * @returns {string} L'ID du booster
+     */
     get id() {
         return this.#id;
     }
 
-    get name() {
-        return this.#name;
-    }
-
-    get price() {
-        return this.#price;
+    /**
+     * @returns {string} Le type du booster
+     */
+    get type() {
+        return this.#type;
     }
 
     /**
-     * Open the booster pack and return the cards inside
-     * @returns {Card[]} The cards obtained from opening the booster pack
+     * @returns {Date} La date d'achat
      */
-    open() {
-        if (this.#cards.length === 0) {
-            this.#generateCards();
-        }
-        return this.#cards.splice(0);
+    get purchaseDate() {
+        return new Date(this.#purchaseDate);
     }
 
     /**
-     * Generate the cards inside the booster pack
+     * @returns {boolean} Si le booster a été ouvert
      */
-    #generateCards() {
-        for (let i = 0; i < this.#cardCount; i++) {
-            const rarity = this.#getRandomRarity();
-            this.#cards.push(this.cardSystem.createCard(
-                `Card ${i + 1}`,
-                rarity,
-                {},
-                [],
-                `/assets/cards/${rarity}.png`,
-                10
-            ));
-        }
+    get isOpened() {
+        return this.#opened;
     }
 
     /**
-     * Get a random rarity based on the rarity distribution
-     * @returns {string} The randomly selected rarity
+     * @returns {Array<Card>|null} Les cartes du booster ou null si non ouvert
      */
-    #getRandomRarity() {
-        const rarityKeys = Object.keys(this.#rarityDistribution);
-        let randomValue = Math.random();
-        let cumulativeWeight = 0;
-
-        for (const rarity of rarityKeys) {
-            cumulativeWeight += this.#rarityDistribution[rarity];
-            if (randomValue <= cumulativeWeight) {
-                return rarity;
-            }
-        }
-
-        return CardSystem.RARITY.COMMON;
+    get cards() {
+        return this.#cards ? [...this.#cards] : null;
     }
 
+    /**
+     * @returns {number} Le coût du booster
+     */
+    get cost() {
+        return Booster.CONFIGS[this.#type].cost;
+    }
+
+    /**
+     * @returns {number} Le nombre de cartes dans le booster
+     */
+    get cardCount() {
+        return Booster.CONFIGS[this.#type].cardCount;
+    }
+
+    /**
+     * @returns {Object} Les poids de rareté du booster
+     */
+    get weights() {
+        return { ...Booster.CONFIGS[this.#type].weights };
+    }
+
+    /**
+     * Sérialise le booster pour la sauvegarde
+     * @returns {Object} Représentation JSON du booster
+     */
     toJSON() {
         return {
             id: this.#id,
-            name: this.#name,
-            price: this.#price,
-            cardCount: this.#cardCount,
-            rarityDistribution: this.#rarityDistribution
+            type: this.#type,
+            purchaseDate: this.#purchaseDate.toISOString(),
+            opened: this.#opened,
+            cards: this.#cards ? this.#cards.map(card => card.id) : null
         };
     }
 
-    static fromJSON(json, cardSystem) {
-        const booster = new Booster(
-            json.id,
-            json.name,
-            json.price,
-            json.cardCount,
-            json.rarityDistribution
-        );
-        booster.cardSystem = cardSystem;
+    /**
+     * Crée un booster à partir d'une sauvegarde
+     * @param {Object} data - Données de sauvegarde
+     * @param {CardSystem} cardSystem - Pour récupérer les cartes
+     * @returns {Booster} Instance de Booster
+     */
+    static fromJSON(data, cardSystem) {
+        const booster = new Booster(data.type);
+        booster.#id = data.id;
+        booster.#purchaseDate = new Date(data.purchaseDate);
+        booster.#opened = data.opened;
+
+        if (data.cards) {
+            booster.#cards = data.cards.map(cardId => cardSystem.getCard(cardId))
+                .filter(card => card !== null);
+        }
+
         return booster;
     }
 }

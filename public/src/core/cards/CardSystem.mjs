@@ -11,13 +11,66 @@ export class CardSystem {
         COLLECTION_CLEARED: 'collection:cleared'
     };
 
+    static CARD_TEMPLATES = {
+        common: {
+            baseNames: ["Gobelin", "Soldat", "Archer", "Paysan", "Rat"],
+            baseValue: 10
+        },
+        uncommon: {
+            baseNames: ["Chevalier", "Mage", "Prêtre", "Voleur", "Druide"],
+            baseValue: 25
+        },
+        rare: {
+            baseNames: ["Capitaine", "Archimage", "Champion", "Assassin", "Oracle"],
+            baseValue: 50
+        },
+        epic: {
+            baseNames: ["Dragon", "Licorne", "Phénix", "Golem", "Hydre"],
+            baseValue: 100
+        },
+        legendary: {
+            baseNames: ["Ancien Dragon", "Roi des Rois", "Dieu Déchu", "Avatar", "Titan"],
+            baseValue: 250
+        }
+    };
+
     #cards;
     #eventEmitter;
+    #nextCardId;
 
     constructor() {
         this.#cards = new Map();
         this.#eventEmitter = new EventEmitter();
+        this.#nextCardId = Date.now();
         this.initialized = this.#loadFromStorage();
+    }
+
+    /**
+     * Crée une nouvelle carte avec la rareté spécifiée
+     * @param {string} rarity - Rareté de la carte à créer
+     * @returns {Card} Nouvelle carte créée
+     */
+    createCard(rarity) {
+        const template = CardSystem.CARD_TEMPLATES[rarity];
+        if (!template) {
+            throw new Error(`Rareté invalide: ${rarity}`);
+        }
+
+        const randomName = template.baseNames[Math.floor(Math.random() * template.baseNames.length)];
+        const id = `${rarity}_${this.#nextCardId++}`;
+
+        const card = new Card({
+            id,
+            name: randomName,
+            rarity,
+            baseValue: template.baseValue,
+            description: `Une carte ${rarity} représentant ${randomName}`
+        });
+
+        // On ajoute automatiquement la carte à la collection
+        this.addCard(card);
+
+        return card;
     }
 
     /**
