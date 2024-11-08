@@ -1,4 +1,5 @@
 import {AchievementSystem} from '../../features/achievements/AchievementSystem.mjs';
+
 // AchievementDisplay.mjs
 export class AchievementDisplay {
     #container;
@@ -81,34 +82,48 @@ export class AchievementDisplay {
         if (achievement.isProgressive && progress.totalLevels) {
             const progressPercent = (progress.currentLevel / progress.totalLevels) * 100;
             progressHtml = `
-                <div class="achievement-progress">
-                    <div class="progress-bar" style="width: ${progressPercent}%"></div>
-                    <span>${progress.currentLevel}/${progress.totalLevels}</span>
-                </div>
-            `;
-        }
-
-        return `
-            <div class="achievement-card ${unlockedClass}">
-                <div class="achievement-icon">🏆</div>
-                <div class="achievement-info">
-                    <h3>${achievement.title}</h3>
-                    <p>${achievement.description}</p>
-                    ${progressHtml}
-                </div>
-                <div class="achievement-reward">
-                    Récompense: ${this.#formatReward(achievement)}
-                </div>
+            <div class="achievement-progress">
+                <div class="progress-bar" style="width: ${progressPercent}%"></div>
+                <span class="progress-text">${progress.currentLevel}/${progress.totalLevels}</span>
             </div>
         `;
+        }
+
+        const stepHtml = achievement.isProgressive
+            ? `<div class="achievement-step">${progress.currentLevel + 1}/${progress.totalLevels}</div>`
+            : `<div class="achievement-step">
+            ${progress.isUnlocked ? '<i class="fas fa-check"></i>' : '1/1'}
+           </div>`;
+
+        return `
+        <div class="achievement-card ${unlockedClass}">
+            ${stepHtml}
+            <div class="achievement-icon">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <div class="achievement-info">
+                <h3>${achievement.title}</h3>
+                <p>${achievement.description}</p>
+                ${progressHtml}
+            </div>
+            <div class="achievement-reward">${this.#formatReward(achievement)}
+            </div>
+        </div>
+    `;
     }
 
     #formatReward(achievement) {
         if (achievement.isProgressive) {
-            return achievement.levels.map(level =>
-                `${level.reward} coins (niveau ${achievement.levels.indexOf(level) + 1})`
-            ).join(', ');
+            const progress = this.#achievementSystem.getAchievementProgress(achievement.id);
+            const nextLevel = achievement.levels[progress.currentLevel];
+
+            if (!nextLevel) {
+                return `Max Level (${achievement.levels[achievement.levels.length - 1].reward} ¤)`;
+            }
+
+            return `${nextLevel.reward} ¤`;
         }
-        return `${achievement.reward} coins`;
+
+        return `${achievement.reward} ¤`;
     }
 }

@@ -101,7 +101,7 @@ export class AutoClickDisplay {
                 <button class="buy-generator-btn" 
                         data-generator-id="${generator.id}"
                         data-cost="${this.#calculateNextCost(generator)}">
-                    Améliorer (${this.#calculateNextCost(generator)} )
+                    Améliorer (${this.#calculateNextCost(generator)})
                 </button>
             </div>
         </div>

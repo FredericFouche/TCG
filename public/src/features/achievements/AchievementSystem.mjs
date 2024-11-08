@@ -24,7 +24,7 @@ export class AchievementSystem extends EventEmitter {
         this.registerAchievement({
             id: 'first-coins',
             title: 'Premier pas',
-            description: 'Gagner vos premiers 100 coins',
+            description: 'Gagner vos premiers 100 ¤',
             condition: (currency) => currency >= 100,
             reward: 10,
             type: 'currency'
@@ -32,8 +32,8 @@ export class AchievementSystem extends EventEmitter {
 
         this.registerAchievement({
             id: 'millionaire',
-            title: 'Millionnaire',
-            description: 'Accumuler 1,000,000 coins',
+            title: 'Le milli',
+            description: 'Accumuler 1,000,000 ¤',
             condition: (currency) => currency >= 1000000,
             reward: 1000,
             type: 'currency'
@@ -132,7 +132,7 @@ export class AchievementSystem extends EventEmitter {
 
         // Notification via le système de toast
         this.#notifications.showSuccess(
-            `🏆 Achievement débloqué : ${achievement.title}\nRécompense : ${achievement.reward} coins`
+            `🏆 Achievement débloqué : ${achievement.title}\nRécompense : ${achievement.reward} ¤`
         );
 
         // Émettre l'événement de déblocage
@@ -149,7 +149,7 @@ export class AchievementSystem extends EventEmitter {
 
     #unlockProgressiveLevel(achievement, level) {
         this.#notifications.showSuccess(
-            `🏆 ${achievement.title} - Niveau ${achievement.currentLevel + 1}\nRécompense : ${level.reward} coins`
+            `🏆 ${achievement.title} - Niveau ${achievement.currentLevel + 1}\nRécompense : ${level.reward} ¤`
         );
 
         if (window.currencySystem) {
