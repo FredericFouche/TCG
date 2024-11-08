@@ -51,11 +51,22 @@ export class Sidebar extends EventEmitter {
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
-            <ul class="menu-list">${menuItemsHTML}</ul>
+            <ul class="menu-list">
+                ${menuItemsHTML}
+            </ul>
+            <div class="sidebar-footer">
+                <button class="tutorial-btn">
+                    <div class="menu-icon-container">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <span class="menu-text">Tutoriel</span>
+                </button>
+            </div>
         `;
 
         this.#elements.toggleBtn = this.#elements.sidebar.querySelector('.toggle-btn');
         this.#elements.menuItems = this.#elements.sidebar.querySelectorAll('.menu-item');
+        this.#elements.tutorialBtn = this.#elements.sidebar.querySelector('.tutorial-btn');
         this.#elements.mainContent = document.getElementById('mainContent');
     }
 
@@ -71,6 +82,10 @@ export class Sidebar extends EventEmitter {
             this.#eventHandlers.set(`navigate_${route}`, () => this.navigateTo(route));
             item.addEventListener('click', this.#eventHandlers.get(`navigate_${route}`));
         });
+
+        this.#eventHandlers.set('tutorial', () => this.emit('tutorial-requested'));
+        this.#elements.tutorialBtn.addEventListener('click',
+            this.#eventHandlers.get('tutorial'));
     }
 
     #unbindEvents() {
@@ -82,6 +97,9 @@ export class Sidebar extends EventEmitter {
             item.removeEventListener('click',
                 this.#eventHandlers.get(`navigate_${route}`));
         });
+
+        this.#elements.tutorialBtn?.removeEventListener('click',
+            this.#eventHandlers.get('tutorial'));
 
         this.#eventHandlers.clear();
     }

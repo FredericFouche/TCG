@@ -52,7 +52,6 @@ export class AutoClickManager extends EventEmitter {
 
         this.#generators.set(id, generator);
 
-        // Émettre l'événement d'ajout du générateur
         this.emit(AutoClickManager.EVENTS.GENERATOR_ADDED, { generator });
 
         return true;
@@ -89,11 +88,17 @@ export class AutoClickManager extends EventEmitter {
             level: generator.level,
             cost,
             production: generator.currentProduction,
-            generator // Ajouter le générateur complet pour faciliter les mises à jour UI
+            generator
         });
 
         if (!this.#isRunning) {
             this.start();
+        }
+
+        if (window.achievementSystem) {
+            // Utiliser this.generators au lieu de this.getAllGenerators()
+            window.achievementSystem.checkAchievement('first-generator', this.generators);
+            window.achievementSystem.checkAchievement('generator-master', this.generators);
         }
 
         return true;

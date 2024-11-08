@@ -1,0 +1,88 @@
+classDiagram
+    %% Core Systems
+    class EventEmitter {
+        +on(eventName, callback)
+        +off(eventName, callback)
+        +emit(eventName, data)
+    }
+
+    class CurrencySystem {
+        -currency
+        -multipliers
+        +add(amount)
+        +subtract(amount)
+        +getCurrentAmount()
+        +addMultiplier(id, value)
+        +save()
+        +load(data)
+    }
+
+    class AutoClickManager {
+        -generators
+        -currencySystem
+        +addGenerator(name, baseProduction, baseCost)
+        +buyGenerator(id)
+        +upgradeGenerator(id)
+        +tick()
+        +save()
+        +load(data)
+    }
+
+    class AchievementSystem {
+        -achievements
+        -unlockedAchievements
+        +registerAchievement(achievement)
+        +checkAchievement(id, value)
+        +save()
+        +load(data)
+    }
+
+    class NotificationSystem {
+        -instance
+        +showSuccess(message)
+        +showError(message)
+        +showInfo(message)
+        +showWarning(message)
+    }
+
+    EventEmitter <|-- CurrencySystem
+    EventEmitter <|-- AutoClickManager
+    EventEmitter <|-- AchievementSystem
+
+    CurrencySystem --> NotificationSystem
+    AutoClickManager --> CurrencySystem
+    AutoClickManager --> NotificationSystem
+    AchievementSystem --> NotificationSystem
+
+    class Toast {
+        +show(message, type)
+        -createToastElement(message, type)
+        -animateAndDestroy()
+    }
+
+    class Sidebar {
+        -activeTab
+        +setActiveTab(tab)
+        +render()
+    }
+
+    class AutoClickDisplay {
+        -autoClickManager
+        +render()
+        -updateDisplay()
+        -bindEvents()
+    }
+
+    class Dashboard {
+        -currencySystem
+        +render()
+        -updateDisplay()
+        -bindEvents()
+    }
+
+    NotificationSystem --> Toast
+    Dashboard --> CurrencySystem
+    AutoClickDisplay --> AutoClickManager
+    AutoClickDisplay --> NotificationSystem
+    Sidebar --> Dashboard
+    Sidebar --> AutoClickDisplay
