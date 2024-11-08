@@ -127,7 +127,7 @@ export class Card {
 
     /**
      * Retire des copies de la carte
-     * @param {number} quantity - Nombre de copies à retirer
+     * @param {null} quantity - Nombre de copies à retirer
      * @returns {boolean} true si le retrait a réussi, false sinon
      */
     removeCopy(quantity = 1) {

@@ -1,186 +1,197 @@
-import { EventEmitter } from "../../utils/EventEmitter.mjs";
+import {EventEmitter} from '../../utils/EventEmitter.mjs';
+import {Card} from './Card.mjs';
 
-/**
- * CardSystem class
- * This class is responsible for managing the cards in the game.
- * It will handle cards characteristics, cards effects, cards interactions
- * and cards animations.
- * Cards are defined by:
- * - An id (unique)
- * - A name
- * - A rarity
- * - Stats
- * - Tags
- * - isLocked
- * - Date of Acquisition
- * - An image
- * - A value (for trading) depending on rarity and stats
- */
-export class CardSystem extends EventEmitter {
-    static RARITY = {
-        COMMON: 'common',
-        UNCOMMON: 'uncommon',
-        RARE: 'rare',
-        EPIC: 'epic',
-        LEGENDARY: 'legendary'
+
+export class CardSystem {
+    static EVENTS = {
+        CARD_ADDED: 'card:added',
+        CARD_REMOVED: 'card:removed',
+        CARD_UPDATED: 'card:updated',
+        COLLECTION_LOADED: 'collection:loaded',
+        COLLECTION_CLEARED: 'collection:cleared'
     };
 
-    static RARITY_MULTIPLIER = {
-        [CardSystem.RARITY.COMMON]: 1,
-        [CardSystem.RARITY.UNCOMMON]: 2,
-        [CardSystem.RARITY.RARE]: 5,
-        [CardSystem.RARITY.EPIC]: 10,
-        [CardSystem.RARITY.LEGENDARY]: 25
-    };
-
-    #cards = new Map();
-    #nextCardId = 1;
+    #cards;
+    #eventEmitter;
 
     constructor() {
-        super();
+        this.#cards = new Map();
+        this.#eventEmitter = new EventEmitter();
+        this.initialized = this.#loadFromStorage();
     }
 
     /**
-     * Create a new card
-     * @param {string} name - The name of the card
-     * @param {string} rarity - The rarity of the card
-     * @param {object} stats - The stats of the card
-     * @param {string[]} tags - The tags of the card
-     * @param {string} imageUrl - The URL of the card image
-     * @param {number} baseValue - The base value of the card
-     * @returns {Card} The new card
+     * Ajoute une carte à la collection
+     * @param {Card} card - La carte à ajouter
+     * @returns {boolean} true si ajoutée, false si mise à jour
      */
-    createCard(name, rarity, stats, tags, imageUrl, baseValue) {
-        const card = new Card({
-            id: this.#nextCardId++,
-            name,
-            rarity,
-            stats,
-            tags,
-            imageUrl,
-            baseValue
-        });
+    addCard(card) {
+        if (!(card instanceof Card)) {
+            throw new Error('L\'objet doit être une instance de Card');
+        }
+
+        const existingCard = this.#cards.get(card.id);
+        if (existingCard) {
+            existingCard.addCopy(card.amount);
+            this.#eventEmitter.emit(CardSystem.EVENTS.CARD_UPDATED, { card: existingCard });
+            this.#saveToStorage();
+            return false;
+        }
+
         this.#cards.set(card.id, card);
-        this.emit('card-created', card);
-        return card;
+        this.#eventEmitter.emit(CardSystem.EVENTS.CARD_ADDED, { card });
+        this.#saveToStorage();
+        return true;
     }
 
-    /**
-     * Get a card by its id
-     * @param {number} cardId - The id of the card
-     * @returns {Card|undefined} The card with the given id, or undefined if not found
-     */
-    getCardById(cardId) {
-        return this.#cards.get(cardId);
-    }
+    removeCard(cardId, amount = null) {
+        const card = this.#cards.get(cardId);
+        if (!card) return false;
 
-    /**
-     * Lock a card
-     * @param {number} cardId - The id of the card to lock
-     */
-    lockCard(cardId) {
-        const card = this.getCardById(cardId);
-        if (card) {
-            card.lock();
-            this.emit('card-locked', card);
-        }
-    }
+        if (amount !== null) {
+            const success = card.removeCopy(amount);
+            if (!success) return false;
 
-    /**
-     * Unlock a card
-     * @param {number} cardId - The id of the card to unlock
-     */
-    unlockCard(cardId) {
-        const card = this.getCardById(cardId);
-        if (card) {
-            card.unlock();
-            this.emit('card-unlocked', card);
-        }
-    }
+            this.#eventEmitter.emit(CardSystem.EVENTS.CARD_UPDATED, { card });
 
-    /**
-     * Get the current value of a card
-     * @param {number} cardId - The id of the card
-     * @returns {number} The current value of the card
-     */
-    getCardValue(cardId) {
-        const card = this.getCardById(cardId);
-        if (card) {
-            return card.getCurrentValue();
-        }
-        return 0;
-    }
-
-    /**
-     * Sell a card
-     * @param {number} cardId - The id of the card to sell
-     * @param {number} quantity - The quantity of the card to sell
-     * @returns {number} The total value received from the sale
-     */
-    sellCard(cardId, quantity = 1) {
-        const card = this.getCardById(cardId);
-        if (card) {
-            const value = card.sell(quantity);
-            this.emit('card-sold', card, value);
-            return value;
-        }
-        return 0;
-    }
-
-    /**
-     * Add a copy of a card to the player's collection
-     * @param {number} cardId - The id of the card
-     * @param {number} [quantity=1] - The quantity of the card to add
-     */
-    addCardCopies(cardId, quantity = 1) {
-        const card = this.getCardById(cardId);
-        if (card) {
-            card.addCopy(quantity);
-            this.emit('card-copies-added', card, quantity);
-        }
-    }
-
-    /**
-     * Remove a copy of a card from the player's collection
-     * @param {number} cardId - The id of the card
-     * @param {number} [quantity=1] - The quantity of the card to remove
-     * @returns {boolean} True if the removal was successful, false otherwise
-     */
-    removeCardCopies(cardId, quantity = 1) {
-        const card = this.getCardById(cardId);
-        if (card) {
-            const success = card.removeCopy(quantity);
-            if (success) {
-                this.emit('card-copies-removed', card, quantity);
+            if (card.amount <= 0) {
+                this.#cards.delete(cardId);
+                this.#eventEmitter.emit(CardSystem.EVENTS.CARD_REMOVED, { cardId });
             }
-            return success;
+
+            this.#saveToStorage();
+            return true;
         }
-        return false;
+
+        this.#cards.delete(cardId);
+        this.#eventEmitter.emit(CardSystem.EVENTS.CARD_REMOVED, { cardId });
+        this.#saveToStorage();
+        return true;
     }
 
     /**
-     * Save the current state of the card system
-     * @returns {object} The saved state of the card system
+     * Récupère une carte par son ID
+     * @param {string} cardId - L'ID de la carte
+     * @returns {Card|null} La carte ou null si non trouvée
      */
-    save() {
-        const savedCards = Array.from(this.#cards.values()).map(card => card.toJSON());
-        return {
-            cards: savedCards,
-            nextCardId: this.#nextCardId
+    getCard(cardId) {
+        return this.#cards.get(cardId) || null;
+    }
+
+    /**
+     * Récupère toutes les cartes selon des critères
+     * @param {Object} filters - Critères de filtrage
+     * @returns {Card[]} Liste des cartes filtrées
+     */
+    getCards(filters = {}) {
+        let cards = Array.from(this.#cards.values());
+
+        if (filters.rarity) {
+            cards = cards.filter(card => card.rarity === filters.rarity);
+        }
+        if (filters.locked !== undefined) {
+            cards = cards.filter(card => card.isLocked === filters.locked);
+        }
+        if (filters.minValue) {
+            cards = cards.filter(card => card.getCurrentValue() >= filters.minValue);
+        }
+
+        return cards;
+    }
+
+    /**
+     * Obtient des statistiques sur la collection
+     * @returns {Object} Statistiques de la collection
+     */
+    getStats() {
+        const stats = {
+            totalCards: 0,
+            byRarity: Object.values(Card.RARITY).reduce((acc, rarity) => {
+                acc[rarity] = 0;
+                return acc;
+            }, {}),
+            totalValue: 0,
+            uniqueCards: this.#cards.size
         };
+
+        for (const card of this.#cards.values()) {
+            stats.totalCards += card.amount;
+            stats.byRarity[card.rarity] += card.amount;
+            stats.totalValue += card.getCurrentValue() * card.amount;
+        }
+
+        return stats;
     }
 
     /**
-     * Load the saved state of the card system
-     * @param {object} savedState - The saved state of the card system
+     * Sauvegarde la collection dans le localStorage
+     * @private
      */
-    load(savedState) {
+    #saveToStorage() {
+        console.log('Sauvegarde...');
+        console.log('Cards à sauvegarder:', Array.from(this.#cards.values()));
+        const saveData = Array.from(this.#cards.values()).map(card => card.toJSON());
+        console.log('SaveData:', saveData);
+        localStorage.setItem('cardCollection', JSON.stringify(saveData));
+        console.log('Vérification après sauvegarde:', localStorage.getItem('cardCollection'));
+    }
+
+    async #loadFromStorage() {
+        try {
+            const saveData = localStorage.getItem('cardCollection');
+            if (!saveData) {
+                this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
+                    cardCount: 0
+                });
+                return;
+            }
+
+            const cardDataArray = JSON.parse(saveData);
+            this.#cards.clear();
+
+            for (const cardData of cardDataArray) {
+                const card = Card.fromJSON(cardData);
+                this.#cards.set(card.id, card);
+            }
+
+            this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
+                cardCount: this.#cards.size
+            });
+        } catch (error) {
+            console.error('Erreur lors du chargement de la collection:', error);
+            this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
+                cardCount: 0,
+                error
+            });
+        }
+    }
+
+    /**
+     * Vide la collection
+     * @returns {boolean} true si réussi
+     */
+    clearCollection() {
         this.#cards.clear();
-        savedState.cards.forEach(cardData => {
-            const card = Card.fromJSON(cardData);
-            this.#cards.set(card.id, card);
-        });
-        this.#nextCardId = savedState.nextCardId;
-        this.emit('cards-loaded');
+        localStorage.removeItem('cardCollection');
+        this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_CLEARED);
+        return true;
+    }
+
+    /**
+     * Abonne une fonction à un événement
+     * @param {string} event - Type d'événement
+     * @param {Function} callback - Fonction à appeler
+     */
+    on(event, callback) {
+        this.#eventEmitter.on(event, callback);
+    }
+
+    /**
+     * Désabonne une fonction d'un événement
+     * @param {string} event - Type d'événement
+     * @param {Function} callback - Fonction à désabonner
+     */
+    off(event, callback) {
+        this.#eventEmitter.off(event, callback);
     }
 }

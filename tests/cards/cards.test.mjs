@@ -1,4 +1,5 @@
-import { Card } from '../../public/src/core/cards/card.mjs';
+import { Card } from '../../public/src/core/cards/Card.mjs';
+import {CardSystem} from '../../public/src/core/cards/CardSystem.mjs';
 
 const test = {
     results: { passed: 0, failed: 0 },
