@@ -148,3 +148,4 @@ export class AutoClickDisplay {
 - Edge (dernière version)
 - Safari Mobile
 
+---
