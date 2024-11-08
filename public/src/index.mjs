@@ -1,6 +1,6 @@
 import {Sidebar} from './components/ui/Sidebar.mjs';
 import {Dashboard} from './components/ui/Dashboard.mjs';
-import {Shop} from './components/ui/Shop.mjs';
+import {Shop} from './components/shop/Shop.mjs';
 import {CurrencySystem} from './core/currency/CurrencySystem.mjs';
 import {CurrencyDisplay} from './components/ui/CurrencyDisplay.mjs';
 import {AutoClickDisplay} from "./components/ui/AutoClickDisplay.mjs";
@@ -11,8 +11,11 @@ import {Toast} from './components/ui/Toast.mjs';
 import {AchievementDisplay} from "./components/ui/AchievementDisplay.mjs";
 import {AchievementSystem} from './features/achievements/AchievementSystem.mjs';
 import {TutorialManager} from './features/tutorial/TutorialManager.mjs';
+import {CardSystem} from './core/cards/CardSystem.mjs';
+import {BoosterSystem} from './core/booster/BoosterSystem.mjs';
+import {BoosterDisplay} from './components/ui/BoostersDisplay.mjs';
 
-// Initialisation des systèmes dans l'ordre de dépendance
+
 const initializeSystems = () => {
     // 1. Système de notification en premier
     console.log('🔔 Initialisation du système de notification');
@@ -22,7 +25,7 @@ const initializeSystems = () => {
     // 2. Configuration des notifications toast avec logs
     console.log('🎯 Configuration du listener de notifications');
     const notificationHandler = ({type, message}) => {
-        console.log('📬 Notification reçue:', { type, message });
+        console.log('📬 Notification reçue:', {type, message});
         Toast.show(message, type);
     };
     notificationSystem.on(NotificationSystem.EVENTS.SHOW_NOTIFICATION, notificationHandler);
@@ -41,22 +44,45 @@ const initializeSystems = () => {
     const currencySystem = new CurrencySystem();
     const autoClickManager = new AutoClickManager(currencySystem);
     const achievementSystem = new AchievementSystem();
+    const cardSystem = new CardSystem();
+    const boosterSystem = new BoosterSystem(cardSystem);
 
     // 4. Système de sauvegarde (dépend des autres systèmes)
     const saveManager = new SaveManager(notificationSystem);
+
+    boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_PURCHASED, () => saveManager.saveAll());
+    boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_OPENED, () => saveManager.saveAll());
 
     // 5. Exposition globale des systèmes
     window.currencySystem = currencySystem;
     window.autoClickManager = autoClickManager;
     window.achievementSystem = achievementSystem;
+    window.cardSystem = cardSystem;
+    window.boosterSystem = boosterSystem;
     window.saveManager = saveManager;
+
+    // Configuration des callbacks de la boutique
+    window.shopCallbacks = {
+        onPurchase: ({itemId, cost, effect}) => {
+            if (effect.type === 'boosterPack') {
+                const booster = boosterSystem.purchaseBooster(effect.boosterType, currencySystem);
+                if (booster) {
+                    notificationSystem.showSuccess(`Booster ${effect.boosterType} acheté !`);
+                }
+            }
+        },
+        canAfford: (cost) => currencySystem.canSpend(cost),
+        getCurrentLevel: () => 1
+    };
 
     return {
         notificationSystem,
         currencySystem,
         autoClickManager,
         achievementSystem,
-        saveManager
+        saveManager,
+        cardSystem,
+        boosterSystem
     };
 };
 
@@ -103,7 +129,7 @@ const setupSidebar = () => {
                 }
                 break;
             case 'shop':
-                currentModule = new Shop();
+                currentModule = new Shop('mainContent', window.shopCallbacks);
                 currentModule.init();
                 break;
             case 'autoclickers':
@@ -113,6 +139,11 @@ const setupSidebar = () => {
             case 'achievements':
                 currentModule = new AchievementDisplay();
                 currentModule.init();
+                break;
+            case 'boosters':
+                currentModule = new BoosterDisplay('mainContent');
+                currentModule.init();
+                currentModule.attachEventListeners();
                 break;
             default:
                 console.log(`Route ${route} non implémentée`);
@@ -131,6 +162,7 @@ const setupSidebar = () => {
 
     return sidebar;
 };
+
 
 // Initialisation de l'application
 const initializeApp = () => {

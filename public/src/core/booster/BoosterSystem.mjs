@@ -1,37 +1,11 @@
 import { EventEmitter } from '../../utils/EventEmitter.mjs';
 
-/**
- * @typedef {Object} BoosterConfig
- * @property {number} cardCount - Nombre de cartes dans le booster
- * @property {number} cost - Coût du booster
- * @property {Object.<string, number>} weights - Poids des raretés
- */
-
-/**
- * @typedef {Object} Booster
- * @property {string} id - Identifiant unique du booster
- * @property {string} type - Type du booster
- * @property {Date} purchaseDate - Date d'achat
- * @property {boolean} opened - État d'ouverture
- * @property {Array<Card>|null} cards - Cartes obtenues
- */
-
-/**
- * @typedef {Object} BoosterHistory
- * @property {string} id - Identifiant du booster
- * @property {string} type - Type du booster
- * @property {Date} openDate - Date d'ouverture
- * @property {Array<{id: string, rarity: string}>} cards - Cartes obtenues
- */
-
-/**
- * Système de gestion des boosters et de leur ouverture
- */
-export class BoosterSystem {
+export class BoosterSystem extends EventEmitter {
     /** @type {Object.<string, string>} */
     static EVENTS = {
         BOOSTER_PURCHASED: 'booster:purchased',
         BOOSTER_OPENED: 'booster:opened',
+        BOOSTER_OPEN_REQUESTED: 'booster:open-requested',
         BOOSTER_ERROR: 'booster:error',
         PITY_UPDATED: 'booster:pity-updated'
     };
@@ -44,77 +18,40 @@ export class BoosterSystem {
     };
 
     #cardSystem;
-    #eventEmitter;
     #pityCounters;
     #boosterHistory;
     #statistics;
+    #boosters;
 
-    /**
-     * @param {import('./CardSystem').CardSystem} cardSystem - Système de gestion des cartes
-     * @throws {Error} Si cardSystem n'est pas fourni
-     */
     constructor(cardSystem) {
+        super();
         if (!cardSystem) {
             throw new Error('CardSystem is required');
         }
 
         this.#cardSystem = cardSystem;
-        this.#eventEmitter = new EventEmitter();
-        this.#pityCounters = {
-            legendary: 0,
-            epic: 0,
-            rare: 0
-        };
+        this.#pityCounters = { legendary: 0, epic: 0, rare: 0 };
         this.#boosterHistory = [];
         this.#statistics = {
             totalOpened: 0,
-            rarityDistribution: {
-                common: 0,
-                uncommon: 0,
-                rare: 0,
-                epic: 0,
-                legendary: 0
-            }
+            rarityDistribution: { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 }
         };
+        this.#boosters = new Map();
     }
 
-    /**
-     * Abonne un callback à un événement
-     * @param {string} event - Type d'événement
-     * @param {Function} callback - Fonction à appeler
-     */
-    on(event, callback) {
-        this.#eventEmitter.on(event, callback);
-    }
-
-    /**
-     * Désabonne un callback d'un événement
-     * @param {string} event - Type d'événement
-     * @param {Function} callback - Fonction à retirer
-     */
-    off(event, callback) {
-        this.#eventEmitter.off(event, callback);
-    }
-
-    /**
-     * Achète un booster du type spécifié
-     * @param {string} type - Type de booster
-     * @param {Object} currencySystem - Système de monnaie
-     * @returns {Booster|null} Le booster acheté ou null en cas d'erreur
-     */
     purchaseBooster(type, currencySystem) {
         const config = this.#getBoosterConfig(type);
 
         if (!config) {
-            this.#eventEmitter.emit(BoosterSystem.EVENTS.BOOSTER_ERROR, {
+            this.emit(BoosterSystem.EVENTS.BOOSTER_ERROR, {
                 message: `Invalid booster type: ${type}`
             });
             return null;
         }
 
-        if (!currencySystem.canSpend(config.cost)) {
-            this.#eventEmitter.emit(BoosterSystem.EVENTS.BOOSTER_ERROR, {
-                message: `Not enough currency. Required: ${config.cost}`
+        if (!currencySystem || typeof currencySystem.canSpend !== 'function' || typeof currencySystem.spend !== 'function') {
+            this.emit(BoosterSystem.EVENTS.BOOSTER_ERROR, {
+                message: `Invalid currency system provided`
             });
             return null;
         }
@@ -129,63 +66,85 @@ export class BoosterSystem {
             cards: null
         };
 
-        this.#eventEmitter.emit(BoosterSystem.EVENTS.BOOSTER_PURCHASED, { booster });
+        this.#boosters.set(booster.id, booster);
+        this.emit(BoosterSystem.EVENTS.BOOSTER_PURCHASED, { booster });
         return booster;
     }
 
-    /**
-     * Ouvre un booster et génère ses cartes
-     * @param {Booster} booster - Booster à ouvrir
-     * @returns {Array<import('./Card').Card>|null} Cartes obtenues ou null si erreur
-     */
-    openBooster(booster) {
-        if (!booster || booster.opened) {
-            this.#eventEmitter.emit(BoosterSystem.EVENTS.BOOSTER_ERROR, {
-                message: 'Invalid or already opened booster'
+    openBooster(boosterId) {
+        const booster = this.#boosters.get(boosterId);
+        if (!booster) {
+            this.emit(BoosterSystem.EVENTS.BOOSTER_ERROR, {
+                message: `Booster with ID ${boosterId} not found`
             });
             return null;
         }
 
-        const config = this.#getBoosterConfig(booster.type);
+        if (booster.opened) {
+            this.emit(BoosterSystem.EVENTS.BOOSTER_ERROR, {
+                message: `Booster with ID ${boosterId} is already opened`
+            });
+            return null;
+        }
+
+        // Génération des cartes du booster
+        const cards = this.#generateBoosterCards(booster.type);
+
+        // Marquer le booster comme ouvert
+        booster.opened = true;
+        booster.cards = cards;
+
+        // Mise à jour des statistiques
+        this.#statistics.totalOpened++;
+        cards.forEach(card => {
+            this.#statistics.rarityDistribution[card.rarity]++;
+        });
+
+        // Sauvegarde de l'historique
+        this.#boosterHistory.push({
+            id: booster.id,
+            type: booster.type,
+            openDate: new Date(),
+            cards: cards.map(card => ({ id: card.id, rarity: card.rarity }))
+        });
+
+        // Ajout des cartes à la collection du joueur
+        cards.forEach(card => {
+            this.#cardSystem.addCardToCollection(card);
+        });
+
+        // Émission de l'événement
+        this.emit(BoosterSystem.EVENTS.BOOSTER_OPENED, { booster, cards });
+
+        // Suppression du booster de la liste des boosters non ouverts
+        this.#boosters.delete(boosterId);
+
+        return cards;
+    }
+
+    #generateBoosterCards(boosterType) {
+        const config = this.#getBoosterConfig(boosterType);
         const cards = [];
         let highestRarity = 'common';
 
         for (let i = 0; i < config.cardCount; i++) {
-            const rarity = this.#determineCardRarity(booster.type);
+            const rarity = this.#determineCardRarity(boosterType);
             const card = this.#cardSystem.createCard(rarity);
             cards.push(card);
 
-            this.#statistics.rarityDistribution[rarity]++;
             if (this.#getRarityValue(rarity) > this.#getRarityValue(highestRarity)) {
                 highestRarity = rarity;
             }
         }
 
         this.#updatePityCounters(highestRarity);
-
-        booster.opened = true;
-        booster.cards = cards;
-        this.#statistics.totalOpened++;
-        this.#boosterHistory.push({
-            id: booster.id,
-            type: booster.type,
-            openDate: new Date(),
-            cards: cards.map(card => ({
-                id: card.id,
-                rarity: card.rarity
-            }))
-        });
-
-        this.#eventEmitter.emit(BoosterSystem.EVENTS.BOOSTER_OPENED, { booster, cards });
         return cards;
     }
 
-    /**
-     * Obtient la configuration d'un type de booster
-     * @private
-     * @param {string} type - Type de booster
-     * @returns {Object} Configuration du booster
-     */
+    getUnusedBoosters() {
+        return Array.from(this.#boosters.values()).filter(booster => !booster.opened);
+    }
+
     #getBoosterConfig(type) {
         return {
             basic: {
@@ -213,17 +172,9 @@ export class BoosterSystem {
         }[type];
     }
 
-    /**
-     * Détermine la rareté d'une carte en tenant compte du système de pitié
-     * @private
-     * @param {string} boosterType - Type de booster
-     * @returns {string} Rareté déterminée
-     */
     #determineCardRarity(boosterType) {
         const config = this.#getBoosterConfig(boosterType);
 
-        // Vérification de la pitié, en commençant par la rareté la plus élevée
-        // Pour être sûr de ne pas manquer une garantie
         const rarities = Object.keys(BoosterSystem.PITY_THRESHOLDS);
         for (const rarity of rarities) {
             if (this.#pityCounters[rarity] >= BoosterSystem.PITY_THRESHOLDS[rarity]) {
@@ -273,9 +224,7 @@ export class BoosterSystem {
             }
         }
 
-        this.#eventEmitter.emit(BoosterSystem.EVENTS.PITY_UPDATED, {
-            counters: { ...this.#pityCounters }
-        });
+        this.emit(BoosterSystem.EVENTS.PITY_UPDATED, { counters: { ...this.#pityCounters } });
     }
 
     /**
@@ -301,22 +250,27 @@ export class BoosterSystem {
      */
     save() {
         return {
-            pityCounters: { ...this.#pityCounters },
-            boosterHistory: [...this.#boosterHistory],
-            statistics: { ...this.#statistics }
+            pityCounters: this.#pityCounters,
+            boosterHistory: this.#boosterHistory,
+            statistics: this.#statistics,
+            boosters: Array.from(this.#boosters.values())
         };
     }
 
     /**
      * Charge un état sauvegardé
-     * @param {Object} saveData - Données de sauvegarde
+     * @param data - Données à charger
      */
-    load(saveData) {
-        if (!saveData) return;
-
-        this.#pityCounters = { ...saveData.pityCounters };
-        this.#boosterHistory = [...saveData.boosterHistory];
-        this.#statistics = { ...saveData.statistics };
+    load(data) {
+        if (data.pityCounters) this.#pityCounters = data.pityCounters;
+        if (data.boosterHistory) this.#boosterHistory = data.boosterHistory;
+        if (data.statistics) this.#statistics = data.statistics;
+        if (data.boosters) {
+            this.#boosters.clear();
+            data.boosters.forEach(booster => {
+                this.#boosters.set(booster.id, booster);
+            });
+        }
     }
 
     /**

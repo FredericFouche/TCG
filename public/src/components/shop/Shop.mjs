@@ -1,64 +1,50 @@
 // Définition des types d'items disponibles dans la boutique
 const SHOP_ITEM_TYPES = {
-    CLICK_POWER: 'clickPower',
-    AUTO_CLICK: 'autoClick',
     BOOSTER_PACK: 'boosterPack',
     UPGRADE: 'upgrade'
 };
 
-// Configuration des items de la boutique
 const SHOP_ITEMS = [
     {
-        id: 'clickPower1',
-        type: SHOP_ITEM_TYPES.CLICK_POWER,
-        title: 'Click Power',
-        description: 'Increase your click power by 1',
-        baseCost: 10,
-        level: 1,
-        maxLevel: 10,
-        costMultiplier: 1.5,
-        effect: {
-            power: 1,
-            type: 'additive'
-        }
-    },
-    {
-        id: 'autoClick1',
-        type: SHOP_ITEM_TYPES.AUTO_CLICK,
-        title: 'Auto Clicker',
-        description: 'Generates 1 click per second',
-        baseCost: 50,
-        level: 1,
-        maxLevel: 5,
-        costMultiplier: 2,
-        effect: {
-            clicksPerSecond: 1
-        }
-    },
-    {
-        id: 'boosterPack1',
+        id: 'basicBooster',
         type: SHOP_ITEM_TYPES.BOOSTER_PACK,
-        title: 'Booster Pack',
-        description: 'Get random Cards',
+        title: 'Basic Booster',
+        description: '5 cartes avec au moins 1 rare garantie',
         baseCost: 100,
         level: 1,
-        maxLevel: 15,
-        costMultiplier: 1.25,
+        maxLevel: 5,
+        costMultiplier: 1,
         effect: {
-            type: 'boosterPack'
+            type: 'boosterPack',
+            boosterType: 'basic'
         }
     },
     {
-        id: 'upgrade1',
-        type: SHOP_ITEM_TYPES.UPGRADE,
-        title: 'Upgrade',
-        description: 'Upgrade your cards',
-        baseCost: 1000,
+        id: 'premiumBooster',
+        type: SHOP_ITEM_TYPES.BOOSTER_PACK,
+        title: 'Premium Booster',
+        description: '10 cartes avec meilleurs taux de rareté',
+        baseCost: 250,
         level: 1,
-        maxLevel: 5,
-        costMultiplier: 2,
+        maxLevel: 10,
+        costMultiplier: 1,
         effect: {
-            type: 'upgrade'
+            type: 'boosterPack',
+            boosterType: 'premium'
+        }
+    },
+    {
+        id: 'specialBooster',
+        type: SHOP_ITEM_TYPES.BOOSTER_PACK,
+        title: 'Special Booster',
+        description: '5 cartes de rareté supérieure garanties',
+        baseCost: 500,
+        level: 1,
+        maxLevel: 15,
+        costMultiplier: 1,
+        effect: {
+            type: 'boosterPack',
+            boosterType: 'special'
         }
     }
 ];

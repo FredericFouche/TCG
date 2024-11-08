@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tests Booster</title>
+    <link rel="stylesheet" href="./booster-test.css">
+    <style>
+        /* Styles critiques en ligne pour éviter le FOUC */
+        body {
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .loaded {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="controls">
+        <h2>Test des Boosters</h2>
+        <div class="button-group">
+            <button id="buyBasic">Acheter Basic (100¤)</button>
+            <button id="buyPremium">Acheter Premium (250¤)</button>
+            <button id="buySpecial">Acheter Special (500¤)</button>
+        </div>
+        <div class="balance">
+            Balance: <span id="balance">1000</span>¤
+        </div>
+    </div>
+
+    <div class="test-panel">
+        <div class="current-booster">
+            <h3>Booster Actuel</h3>
+            <div id="currentBooster" class="booster-display"></div>
+        </div>
+
+        <div class="stats-panel">
+            <div class="stats">
+                <h3>Statistiques</h3>
+                <div id="stats" class="stats-content"></div>
+            </div>
+
+            <div class="history">
+                <h3>Historique des Ouvertures</h3>
+                <div id="history" class="history-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>Tests Unitaires</h3>
+        <div class="test-controls">
+            <button id="runTests" class="primary">Lancer les tests</button>
+            <button id="clearTests">Réinitialiser</button>
+        </div>
+        <div id="testOutput" class="test-log">
+            <div class="test-intro info">
+                Cliquez sur "Lancer les tests" pour commencer...
+            </div>
+        </div>
+    </div>
+</div>
+
+<template id="cardTemplate">
+    <div class="card">
+        <h3 class="card-name"></h3>
+        <div class="card-rarity"></div>
+        <div class="card-value"></div>
+    </div>
+</template>
+
+<script type="module" src="./Booster.test.mjs"></script>
+<script>
+    // Eviter le FOUC (Flash of Unstyled Content)
+    window.addEventListener('load', () => {
+        document.body.classList.add('loaded');
+    });
+
+    // Clear tests
+    document.getElementById('clearTests').addEventListener('click', () => {
+        document.getElementById('testOutput').innerHTML =
+            '<div class="test-intro info">Cliquez sur "Lancer les tests" pour commencer...</div>';
+    });
+</script>
+</body>
+</html>

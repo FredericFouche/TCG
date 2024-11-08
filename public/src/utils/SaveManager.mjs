@@ -12,7 +12,8 @@ export class SaveManager extends EventEmitter {
         CURRENCY: 'currencySystem',
         GENERATORS: 'generators',
         ACHIEVEMENTS: 'achievements',
-        HAS_VISITED: 'hasVisitedBefore'
+        HAS_VISITED: 'hasVisitedBefore',
+        BOOSTERS: 'boosters'
     };
 
     #autoSaveInterval;
@@ -51,7 +52,12 @@ export class SaveManager extends EventEmitter {
                 window.achievementSystem.load(JSON.parse(achievementsData));
             }
 
-            const loadedAny = Boolean(generatorsData || currencyData || achievementsData);
+            const boostersData = localStorage.getItem(SaveManager.SAVE_KEYS.BOOSTERS);
+            if (boostersData && window.boosterSystem) {
+                window.boosterSystem.load(JSON.parse(boostersData));
+            }
+
+            const loadedAny = Boolean(generatorsData || currencyData || achievementsData || boostersData);
             if (loadedAny) {
                 this.emit(SaveManager.EVENTS.LOAD_COMPLETED);
                 this.#notificationSystem?.showSuccess('Partie chargée avec succès !');
@@ -82,6 +88,11 @@ export class SaveManager extends EventEmitter {
             if (window.achievementSystem) {
                 const achievementsData = window.achievementSystem.save();
                 localStorage.setItem(SaveManager.SAVE_KEYS.ACHIEVEMENTS, JSON.stringify(achievementsData));
+            }
+
+            if (window.boosterSystem) {
+                const boostersData = window.boosterSystem.save();
+                localStorage.setItem(SaveManager.SAVE_KEYS.BOOSTERS, JSON.stringify(boostersData));
             }
 
             localStorage.setItem(SaveManager.SAVE_KEYS.HAS_VISITED, 'true');
