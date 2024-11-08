@@ -50,7 +50,11 @@ export class CurrencySystem extends EventEmitter {
         const oldValue = this.#currency;
         this.#currency += amount;
 
-        // Émettre l'événement de mise à jour
+        if (window.achievementSystem) {
+            window.achievementSystem.checkAchievement('first-coins', this.#currency);
+            window.achievementSystem.checkAchievement('millionaire', this.#currency);
+        }
+
         this.emit(CurrencySystem.EVENTS.CURRENCY_UPDATED, {
             oldValue,
             newValue: this.#currency,

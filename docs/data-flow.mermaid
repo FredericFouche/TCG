@@ -1,0 +1,29 @@
+flowchart TB
+    Click[Clicks Manuels] --> Currency
+    Currency[CurrencySystem] --> |CURRENCY_UPDATED| UI
+    
+    subgraph Core[Systèmes Core]
+        Currency
+        AutoClick[AutoClickManager]
+        Achievement[AchievementSystem]
+    end
+
+    subgraph UI[Interface Utilisateur]
+        Sidebar --> |Navigation| Modules
+        Modules --> Dashboard
+        Modules --> AutoClickDisplay
+        Toast
+    end
+
+    AutoClick --> |TICK| Currency
+    AutoClick --> |GENERATOR_BOUGHT| Achievement
+    Currency --> |UPDATE| Achievement
+    Achievement --> |ACHIEVEMENT_UNLOCKED| NotifSystem[NotificationSystem]
+    NotifSystem --> Toast
+
+    subgraph Storage[Persistence]
+        LocalStorage
+    end
+    
+    Core --> |save| LocalStorage
+    LocalStorage --> |load| Core

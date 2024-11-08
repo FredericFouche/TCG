@@ -726,3 +726,50 @@ html, body {
         -webkit-tap-highlight-color: transparent;
     }
 }
+
+/* Achievements Panel */
+.achievements-panel {
+    padding: 1.1rem;
+    background: var(--color-text-primary);
+    border-radius: var(--border-radius-md);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+}
+
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.15rem;
+}
+
+.achievement-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: var(--color-accent-secondary);
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--color-border);
+    opacity: 0.6;
+}
+
+.achievement-card.achievement-unlocked {
+    opacity: 1;
+    border-color: var(--color-border);
+}
+
+.achievement-progress {
+    margin-top: 10px;
+    background: var(--color-background);
+    border-radius: var(--border-radius-sm);
+    height: 1.25rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar {
+    position: absolute;
+    height: 100%;
+    background: var(--color-background);
+    transition: width 0.3s ease;
+}
