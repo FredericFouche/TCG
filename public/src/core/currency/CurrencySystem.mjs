@@ -150,15 +150,8 @@ export class CurrencySystem extends EventEmitter {
         return `${scaled.toFixed(1)}${suffix}`;
     }
 
-    startAutoSave(interval = 10000) {
+    startAutoSave(interval = 1000) {
         if (this.#autoSaveInterval) clearInterval(this.#autoSaveInterval);
         this.#autoSaveInterval = setInterval(() => this.save(), interval);
-    }
-
-    stopAutoSave() {
-        if (this.#autoSaveInterval) {
-            clearInterval(this.#autoSaveInterval);
-            this.#autoSaveInterval = null;
-        }
     }
 }
