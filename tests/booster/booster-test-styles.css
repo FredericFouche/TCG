@@ -1,0 +1,115 @@
+/* Style général */
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f0f2f5;
+}
+
+/* Contrôles */
+.controls {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls h2 {
+    margin-top: 0;
+    color: #1a1a1a;
+}
+
+button {
+    background-color: #4a9eff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+button:hover {
+    background-color: #2e7bcc;
+}
+
+/* Affichage des boosters */
+.booster-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.card {
+    background-color: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: calc(20% - 10px);
+    min-width: 120px;
+}
+
+/* Styles de rareté */
+.common {
+    border-left: 4px solid #808080;
+}
+
+.uncommon {
+    border-left: 4px solid #2ecc71;
+}
+
+.rare {
+    border-left: 4px solid #3498db;
+}
+
+.epic {
+    border-left: 4px solid #9b59b6;
+}
+
+.legendary {
+    border-left: 4px solid #f1c40f;
+}
+
+/* Stats et historique */
+.stats {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Section de test */
+.test-section {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.test-log {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.test-log .success {
+    color: #2ecc71;
+    margin: 5px 0;
+}
+
+.test-log .error {
+    color: #e74c3c;
+    margin: 5px 0;
+}
+
+.test-log .info {
+    color: #3498db;
+    margin: 5px 0;
+}
