@@ -1,35 +1,34 @@
-// src/utils/EventEmitter.mjs
 export class EventEmitter {
     constructor() {
-        this.events = {};
+        this._events = new Map();
     }
 
-    on(event, callback) {
-        if (!this.events[event]) {
-            this.events[event] = [];
+    on(eventName, listener) {
+        if (!this._events.has(eventName)) {
+            this._events.set(eventName, new Set());
         }
-        this.events[event].push(callback);
-        return this; // Pour le chaînage
+        this._events.get(eventName).add(listener);
     }
 
-    emit(event, data) {
-        if (!this.events[event]) {
-            return this;
+    off(eventName, listener) {
+        if (this._events.has(eventName)) {
+            this._events.get(eventName).delete(listener);
         }
-        this.events[event].forEach(callback => callback(data));
-        return this; // Pour le chaînage
     }
 
-    off(event, callback) {
-        if (!this.events[event]) {
-            return this;
+    emit(eventName, data) {
+        if (this._events.has(eventName)) {
+            for (const listener of this._events.get(eventName)) {
+                listener(data);
+            }
         }
-        if (!callback) {
-            delete this.events[event];
-        } else {
-            this.events[event] = this.events[event]
-                .filter(cb => cb !== callback);
-        }
-        return this; // Pour le chaînage
+    }
+
+    listenerCount(eventName) {
+        return this._events.get(eventName)?.size || 0;
+    }
+
+    clearAllListeners() {
+        this._events.clear();
     }
 }

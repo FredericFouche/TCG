@@ -4,12 +4,14 @@ import { NotificationSystem } from '../../utils/NotificationSystem.mjs';
 export class AchievementSystem extends EventEmitter {
     static EVENTS = {
         ACHIEVEMENT_UNLOCKED: 'achievement-unlocked',
-        ACHIEVEMENT_PROGRESS: 'achievement-progress'
+        ACHIEVEMENT_PROGRESS: 'achievement-progress',
+        ACHIEVEMENTS_LOADED: 'achievements-loaded'
     };
 
     #achievements;
     #unlockedAchievements;
     #notifications;
+    #checkIntervalId;
 
     constructor() {
         super();
@@ -17,6 +19,7 @@ export class AchievementSystem extends EventEmitter {
         this.#unlockedAchievements = new Set();
         this.#notifications = NotificationSystem.getInstance();
         this.#initializeBaseAchievements();
+        this.#startPeriodicCheck();
     }
 
     #initializeBaseAchievements() {
@@ -25,7 +28,7 @@ export class AchievementSystem extends EventEmitter {
             id: 'first-coins',
             title: 'Premier pas',
             description: 'Gagner vos premiers 100 ¤',
-            condition: (currency) => currency >= 100,
+            condition: (currency) => typeof currency === 'number' && currency >= 100,
             reward: 10,
             type: 'currency'
         });
@@ -34,7 +37,7 @@ export class AchievementSystem extends EventEmitter {
             id: 'millionaire',
             title: 'Le milli',
             description: 'Accumuler 1,000,000 ¤',
-            condition: (currency) => currency >= 1000000,
+            condition: (currency) => typeof currency === 'number' && currency >= 1000000,
             reward: 1000,
             type: 'currency'
         });
@@ -44,7 +47,7 @@ export class AchievementSystem extends EventEmitter {
             id: 'first-generator',
             title: 'Automatisation',
             description: 'Acheter votre premier générateur',
-            condition: (generators) => generators.some(g => g.level > 0),
+            condition: (generators) => Array.isArray(generators) && generators.some(g => g && g.level > 0),
             reward: 50,
             type: 'generator'
         });
@@ -53,7 +56,7 @@ export class AchievementSystem extends EventEmitter {
             id: 'generator-master',
             title: 'Maître des Générateurs',
             description: 'Avoir 10 niveaux sur tous les générateurs',
-            condition: (generators) => generators.every(g => g.level >= 10),
+            condition: (generators) => Array.isArray(generators) && generators.length > 0 && generators.every(g => g && g.level >= 10),
             reward: 5000,
             type: 'generator'
         });
@@ -68,9 +71,56 @@ export class AchievementSystem extends EventEmitter {
                 { requirement: 50, reward: 500 },
                 { requirement: 100, reward: 2000 },
             ],
-            getCurrentValue: (collection) => collection.getUniqueCardsCount(),
+            getCurrentValue: (collection) => collection && typeof collection.getUniqueCardsCount === 'function' ? collection.getUniqueCardsCount() : 0,
             type: 'collection'
         });
+    }
+
+    #startPeriodicCheck() {
+        // Vérification périodique des achievements
+        this.#checkIntervalId = setInterval(() => {
+            this.#checkAllAchievements();
+        }, 5000); // Vérifie toutes les 5 secondes
+    }
+
+    #checkAllAchievements() {
+        if (!window.currencySystem || !window.autoClickManager) return;
+
+        const currency = window.currencySystem.currency;
+        const generators = window.autoClickManager.generators;
+
+        // Vérifier les achievements de type currency
+        this.#achievements.forEach(achievement => {
+            if (this.#unlockedAchievements.has(achievement.id)) return;
+
+            try {
+                switch (achievement.type) {
+                    case 'currency':
+                        if (currency !== undefined) {
+                            this.checkAchievement(achievement.id, currency);
+                        }
+                        break;
+                    case 'generator':
+                        if (generators && Array.isArray(generators)) {
+                            this.checkAchievement(achievement.id, generators);
+                        }
+                        break;
+                    case 'collection':
+                        if (window.collectionSystem) {
+                            this.checkAchievement(achievement.id, window.collectionSystem);
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error(`Erreur lors de la vérification de l'achievement ${achievement.id}:`, error);
+            }
+        });
+    }
+
+    destroy() {
+        if (this.#checkIntervalId) {
+            clearInterval(this.#checkIntervalId);
+        }
     }
 
     registerAchievement({id, title, description, condition, reward, type}) {
@@ -116,8 +166,7 @@ export class AchievementSystem extends EventEmitter {
         if (nextLevel && currentValue >= nextLevel.requirement) {
             this.#unlockProgressiveLevel(achievement, nextLevel);
             achievement.currentLevel++;
-            
-            // Émettre l'événement de progression
+
             this.emit(AchievementSystem.EVENTS.ACHIEVEMENT_PROGRESS, {
                 achievement,
                 level: achievement.currentLevel,
@@ -126,24 +175,20 @@ export class AchievementSystem extends EventEmitter {
         }
     }
 
-
     #unlockAchievement(achievement) {
         this.#unlockedAchievements.add(achievement.id);
 
-        // Notification via le système de toast
         this.#notifications.showSuccess(
             `🏆 Achievement débloqué : ${achievement.title}\nRécompense : ${achievement.reward} ¤`
         );
 
-        // Émettre l'événement de déblocage
         this.emit(AchievementSystem.EVENTS.ACHIEVEMENT_UNLOCKED, {
             achievement,
             reward: achievement.reward
         });
 
-        // Ajouter la récompense à la monnaie du joueur
         if (window.currencySystem) {
-            window.currencySystem.addCurrency(achievement.reward); // Changé de add à addCurrency
+            window.currencySystem.add(achievement.reward);
         }
     }
 
@@ -153,11 +198,10 @@ export class AchievementSystem extends EventEmitter {
         );
 
         if (window.currencySystem) {
-            window.currencySystem.addCurrency(level.reward); // Changé aussi ici
+            window.currencySystem.add(level.reward);
         }
     }
 
-    // Méthodes de sauvegarde/chargement
     save() {
         return {
             unlockedAchievements: Array.from(this.#unlockedAchievements),
@@ -171,21 +215,39 @@ export class AchievementSystem extends EventEmitter {
     }
 
     load(saveData) {
-        if (saveData.unlockedAchievements) {
-            this.#unlockedAchievements = new Set(saveData.unlockedAchievements);
-        }
-        
-        if (saveData.progressiveStates) {
-            for (const state of saveData.progressiveStates) {
-                const achievement = this.#achievements.get(state.id);
-                if (achievement && achievement.isProgressive) {
-                    achievement.currentLevel = state.currentLevel;
+        if (!saveData) return false;
+
+        try {
+            if (saveData.unlockedAchievements) {
+                this.#unlockedAchievements = new Set(saveData.unlockedAchievements);
+            }
+
+            if (saveData.progressiveStates) {
+                for (const state of saveData.progressiveStates) {
+                    const achievement = this.#achievements.get(state.id);
+                    if (achievement && achievement.isProgressive) {
+                        achievement.currentLevel = state.currentLevel;
+                    }
                 }
             }
+
+            this.emit(AchievementSystem.EVENTS.ACHIEVEMENTS_LOADED);
+            this.#checkAllAchievements();
+            return true;
+        } catch (error) {
+            console.error('Failed to load achievements:', error);
+            return false;
         }
     }
 
-    // Méthodes utilitaires
+    getAllAchievements() {
+        return Array.from(this.#achievements.values()).map(achievement => ({
+            ...achievement,
+            isUnlocked: this.#unlockedAchievements.has(achievement.id),
+            currentLevel: achievement.isProgressive ? achievement.currentLevel : null
+        }));
+    }
+
     getAchievementProgress(achievementId) {
         const achievement = this.#achievements.get(achievementId);
         if (!achievement) return null;
@@ -195,13 +257,5 @@ export class AchievementSystem extends EventEmitter {
             currentLevel: achievement.isProgressive ? achievement.currentLevel : null,
             totalLevels: achievement.isProgressive ? achievement.levels.length : null
         };
-    }
-
-    getAllAchievements() {
-        return Array.from(this.#achievements.values()).map(achievement => ({
-            ...achievement,
-            isUnlocked: this.#unlockedAchievements.has(achievement.id),
-            currentLevel: achievement.isProgressive ? achievement.currentLevel : null
-        }));
     }
 }

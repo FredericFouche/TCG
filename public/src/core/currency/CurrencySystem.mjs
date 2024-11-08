@@ -1,5 +1,3 @@
-// core/currency/CurrencySystem.mjs
-
 import { EventEmitter } from '../../utils/EventEmitter.mjs';
 
 export class CurrencySystem extends EventEmitter {
@@ -12,7 +10,6 @@ export class CurrencySystem extends EventEmitter {
     #baseClickValue;
     #multiplier;
     #lastUpdate;
-    #autoSaveInterval;
 
     constructor(initialCurrency = 0, baseClickValue = 1) {
         super();
@@ -20,10 +17,6 @@ export class CurrencySystem extends EventEmitter {
         this.#baseClickValue = baseClickValue;
         this.#multiplier = 1;
         this.#lastUpdate = Date.now();
-        this.#autoSaveInterval = null;
-
-        // Démarrer l'auto-save
-        this.startAutoSave();
     }
 
     // Getters
@@ -44,7 +37,7 @@ export class CurrencySystem extends EventEmitter {
     }
 
     // Méthodes principales
-    addCurrency(amount) {
+    add(amount) {
         if (amount <= 0) return false;
 
         const oldValue = this.#currency;
@@ -64,13 +57,12 @@ export class CurrencySystem extends EventEmitter {
         return true;
     }
 
-    removeCurrency(amount) {
+    spend(amount) {
         if (amount <= 0 || this.#currency < amount) return false;
 
         const oldValue = this.#currency;
         this.#currency -= amount;
 
-        // Émettre l'événement de mise à jour
         this.emit(CurrencySystem.EVENTS.CURRENCY_UPDATED, {
             oldValue,
             newValue: this.#currency,
@@ -80,9 +72,13 @@ export class CurrencySystem extends EventEmitter {
         return true;
     }
 
+    canSpend(amount) {
+        return amount > 0 && this.#currency >= amount;
+    }
+
     handleClick() {
         const clickValue = this.#baseClickValue * this.#multiplier;
-        return this.addCurrency(clickValue);
+        return this.add(clickValue);
     }
 
     addMultiplier(value) {
@@ -102,34 +98,23 @@ export class CurrencySystem extends EventEmitter {
 
     // Méthodes de sauvegarde
     save() {
-        const saveData = {
+        return {
             currency: this.#currency,
             baseClickValue: this.#baseClickValue,
             multiplier: this.#multiplier,
             lastUpdate: this.#lastUpdate
         };
-
-        try {
-            localStorage.setItem('currencySystem', JSON.stringify(saveData));
-            return true;
-        } catch (error) {
-            console.error('Failed to save currency system:', error);
-            return false;
-        }
     }
 
-    load() {
-        try {
-            const savedData = localStorage.getItem('currencySystem');
-            if (!savedData) return false;
+    load(data) {
+        if (!data) return false;
 
-            const data = JSON.parse(savedData);
-            this.#currency = data.currency;
-            this.#baseClickValue = data.baseClickValue;
-            this.#multiplier = data.multiplier;
+        try {
+            this.#currency = Number(data.currency);
+            this.#baseClickValue = Number(data.baseClickValue);
+            this.#multiplier = Number(data.multiplier);
             this.#lastUpdate = data.lastUpdate;
 
-            // Émettre l'événement de mise à jour après le chargement
             this.emit(CurrencySystem.EVENTS.CURRENCY_UPDATED, {
                 newValue: this.#currency,
                 loaded: true
@@ -142,7 +127,7 @@ export class CurrencySystem extends EventEmitter {
         }
     }
 
-    // Méthodes privées
+    // Méthode privée pour le formatage des nombres
     #formatNumber(number) {
         if (number < 1000) return number.toString();
 
@@ -152,10 +137,5 @@ export class CurrencySystem extends EventEmitter {
         const suffix = suffixes[magnitude];
 
         return `${scaled.toFixed(1)}${suffix}`;
-    }
-
-    startAutoSave(interval = 1000) {
-        if (this.#autoSaveInterval) clearInterval(this.#autoSaveInterval);
-        this.#autoSaveInterval = setInterval(() => this.save(), interval);
     }
 }
