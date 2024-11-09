@@ -1,5 +1,4 @@
 import {EventEmitter} from '../../utils/EventEmitter.mjs';
-import {NumberFormatter} from '../../utils/NumberFormatter.mjs';
 
 export class AutoClickManager extends EventEmitter {
     static EVENTS = {

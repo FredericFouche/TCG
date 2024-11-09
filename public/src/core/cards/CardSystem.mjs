@@ -42,7 +42,6 @@ export class CardSystem {
         this.#cards = new Map();
         this.#eventEmitter = new EventEmitter();
         this.#nextCardId = Date.now();
-        this.initialized = this.#loadFromStorage();
     }
 
     /**
@@ -73,11 +72,6 @@ export class CardSystem {
         return card;
     }
 
-    /**
-     * Ajoute une carte à la collection
-     * @param {Card} card - La carte à ajouter
-     * @returns {boolean} true si ajoutée, false si mise à jour
-     */
     addCard(card) {
         if (!(card instanceof Card)) {
             throw new Error('L\'objet doit être une instance de Card');
@@ -87,13 +81,11 @@ export class CardSystem {
         if (existingCard) {
             existingCard.addCopy(card.amount);
             this.#eventEmitter.emit(CardSystem.EVENTS.CARD_UPDATED, { card: existingCard });
-            this.#saveToStorage();
             return false;
         }
 
         this.#cards.set(card.id, card);
         this.#eventEmitter.emit(CardSystem.EVENTS.CARD_ADDED, { card });
-        this.#saveToStorage();
         return true;
     }
 
@@ -112,13 +104,11 @@ export class CardSystem {
                 this.#eventEmitter.emit(CardSystem.EVENTS.CARD_REMOVED, { cardId });
             }
 
-            this.#saveToStorage();
             return true;
         }
 
         this.#cards.delete(cardId);
         this.#eventEmitter.emit(CardSystem.EVENTS.CARD_REMOVED, { cardId });
-        this.#saveToStorage();
         return true;
     }
 
@@ -219,13 +209,8 @@ export class CardSystem {
         }
     }
 
-    /**
-     * Vide la collection
-     * @returns {boolean} true si réussi
-     */
     clearCollection() {
         this.#cards.clear();
-        localStorage.removeItem('cardCollection');
         this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_CLEARED);
         return true;
     }
@@ -246,5 +231,43 @@ export class CardSystem {
      */
     off(event, callback) {
         this.#eventEmitter.off(event, callback);
+    }
+    /**
+     * Sauvegarde l'état actuel du système de cartes
+     * @returns {Object} Les données à sauvegarder
+     */
+    save() {
+        return {
+            cards: Array.from(this.#cards.values()).map(card => card.toJSON()),
+            nextCardId: this.#nextCardId
+        };
+    }
+
+    /**
+     * Charge l'état du système de cartes
+     * @param {Object} saveData - Les données à charger
+     */
+    load(saveData) {
+        if (!saveData) return;
+
+        try {
+            this.#cards.clear();
+            this.#nextCardId = saveData.nextCardId || Date.now();
+
+            for (const cardData of saveData.cards) {
+                const card = Card.fromJSON(cardData);
+                this.#cards.set(card.id, card);
+            }
+
+            this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
+                cardCount: this.#cards.size
+            });
+        } catch (error) {
+            console.error('Erreur lors du chargement de la collection:', error);
+            this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
+                cardCount: 0,
+                error
+            });
+        }
     }
 }

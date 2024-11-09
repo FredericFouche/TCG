@@ -54,3 +54,68 @@
 2. Nécessité d'une gestion centralisée des sauvegardes
 3. Utilisation des utilitaires existants plutôt que duplication
 4. Importance des logs clairs pour le debugging
+
+
+# 🐛 Point d'étape - Amélioration continue du Système de Sauvegarde
+
+## Problème initial
+- Production offline mal gérée entre les différents systèmes
+- Sauvegardes pas assez fréquentes
+- Gains offline parfois incorrects
+- Code dupliqué entre AutoClickManager et SaveManager
+
+## Analyse du problème
+1. **Structure de la logique de timing** :
+- LastUpdate dupliqué dans plusieurs classes
+- Calcul des gains offline dispersé
+- Sauvegarde pas assez réactive
+
+2. **Impact** :
+- Risque de perte de progression
+- Gains offline parfois sous-estimés
+- Code difficile à maintenir
+- Responsabilités mal définies
+
+## Solutions apportées
+
+### 1. Centralisation complète dans SaveManager
+- Migration de toute la logique de timing
+- Réduction des intervalles de sauvegarde (5s au lieu de 60s)
+- Unification du `MIN_SAVE_INTERVAL` (5s)
+- Gestion centralisée du `lastUpdate`
+
+### 2. Simplification des autres systèmes
+- Retrait de la logique de timing d'AutoClickManager
+- Allègement du CurrencySystem
+- Méthodes save/load plus simples et focalisées
+- Retrait des timestamps redondants
+
+### 3. Amélioration du chargement
+- Restructuration de loadAll()
+- Meilleure gestion des erreurs de parsing
+- Chargement plus robuste des données
+- Vérification des données avant utilisation
+
+## Améliorations supplémentaires
+- Sauvegardes plus fréquentes et fiables
+- Meilleure séparation des responsabilités
+- Logs plus détaillés et organisés
+- Structure de code plus maintenable
+
+## État actuel
+- ✅ Gains offline correctement calculés
+- ✅ Sauvegardes plus fréquentes (5s)
+- ✅ Code plus clair et mieux organisé
+- ✅ Meilleure gestion des erreurs
+
+## Prochaines étapes
+1. Ajouter des tests pour le système de sauvegarde
+2. Optimiser les performances des sauvegardes fréquentes
+3. Améliorer les logs de debug
+4. Ajouter des métriques de performance
+
+## Leçons apprises
+1. Importance d'une source unique pour la gestion du temps
+2. Bénéfices d'une sauvegarde plus fréquente
+3. Valeur de la centralisation des responsabilités
+4. Importance d'une bonne structure de données pour le chargement

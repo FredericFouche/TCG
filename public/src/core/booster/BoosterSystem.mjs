@@ -110,7 +110,7 @@ export class BoosterSystem extends EventEmitter {
 
         // Ajout des cartes à la collection du joueur
         cards.forEach(card => {
-            this.#cardSystem.addCardToCollection(card);
+            this.#cardSystem.addCard(card);
         });
 
         // Émission de l'événement

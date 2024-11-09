@@ -13,12 +13,14 @@ export class SaveManager extends EventEmitter {
         GENERATORS: 'generators',
         ACHIEVEMENTS: 'achievements',
         HAS_VISITED: 'hasVisitedBefore',
-        BOOSTERS: 'boosters'
+        BOOSTERS: 'boosters',
+        COLLECTION: 'collection',
+        CARDS: 'cardCollection'
     };
 
     static OFFLINE_CONFIG = {
         MAX_OFFLINE_TIME: 86400,
-        MIN_SAVE_INTERVAL: 800
+        MIN_SAVE_INTERVAL: 1500
     };
 
     #autoSaveInterval;
@@ -26,7 +28,7 @@ export class SaveManager extends EventEmitter {
     #lastSaveTimestamp = 0;
     #lastUpdate = Date.now();
 
-    constructor(notificationSystem, autoSaveInterval = 1000) {
+    constructor(notificationSystem, autoSaveInterval = 3000) {
         super();
         this.#notificationSystem = notificationSystem;
         this.#setupAutoSave(autoSaveInterval);
@@ -42,12 +44,13 @@ export class SaveManager extends EventEmitter {
     async loadAll() {
         console.group('📂 Chargement des données');
         try {
-            // 1. Récupérer toutes les données
             const savedData = {
                 currency: localStorage.getItem(SaveManager.SAVE_KEYS.CURRENCY),
                 generators: localStorage.getItem(SaveManager.SAVE_KEYS.GENERATORS),
                 achievements: localStorage.getItem(SaveManager.SAVE_KEYS.ACHIEVEMENTS),
-                boosters: localStorage.getItem(SaveManager.SAVE_KEYS.BOOSTERS)
+                boosters: localStorage.getItem(SaveManager.SAVE_KEYS.BOOSTERS),
+                cards: localStorage.getItem(SaveManager.SAVE_KEYS.CARDS),
+                collection: localStorage.getItem(SaveManager.SAVE_KEYS.COLLECTION)
             };
 
             // 2. Vérifier s'il y a des données à charger
@@ -102,8 +105,16 @@ export class SaveManager extends EventEmitter {
                     window.autoClickManager.load(parsedData.generators);
                 }
             }
+            if (parsedData.cards && window.cardSystem) {
+                console.log('🎴 Chargement système de cartes');
+                window.cardSystem.load(parsedData.cards);
+            }
 
-            // 7. Charger les systèmes secondaires
+            if (parsedData.collection && window.collectionSystem) {
+                console.log('📚 Chargement collection');
+                window.collectionSystem.load(parsedData.collection);
+            }
+
             if (parsedData.achievements && window.achievementSystem) {
                 console.log('🏆 Chargement achievements');
                 window.achievementSystem.load(parsedData.achievements);
@@ -114,10 +125,8 @@ export class SaveManager extends EventEmitter {
                 window.boosterSystem.load(parsedData.boosters);
             }
 
-            // 8. Mise à jour du dernier timestamp
             this.#lastUpdate = Date.now();
 
-            // 9. Notification et événements
             console.log('✅ Chargement terminé');
             this.emit(SaveManager.EVENTS.LOAD_COMPLETED);
             this.#notificationSystem?.showSuccess('Partie chargée avec succès !');
@@ -150,7 +159,9 @@ export class SaveManager extends EventEmitter {
                 generators: window.autoClickManager?.save(),
                 currency: window.currencySystem?.save(),
                 achievements: window.achievementSystem?.save(),
-                boosters: window.boosterSystem?.save()
+                boosters: window.boosterSystem?.save(),
+                cards: window.cardSystem?.save(),
+                collection: window.collectionSystem?.save()
             };
 
             Object.entries(saveData).forEach(([key, value]) => {

@@ -14,17 +14,18 @@ import {TutorialManager} from './features/tutorial/TutorialManager.mjs';
 import {CardSystem} from './core/cards/CardSystem.mjs';
 import {BoosterSystem} from './core/booster/BoosterSystem.mjs';
 import {BoosterDisplay} from './components/ui/BoostersDisplay.mjs';
-
+import {CollectionSystem} from './core/collection/CollectionSystem.mjs';
+import {CollectionDisplay} from './components/ui/CollectionDisplay.mjs';
 
 const initializeSystems = () => {
     console.group('🎮 Initialisation des systèmes');
 
-    // 1. Système de notification en premier
+    // 1. Système de notification en premier (inchangé)
     console.log('🔔 Initialisation du système de notification');
     const notificationSystem = NotificationSystem.getInstance();
     window.notificationSystem = notificationSystem;
 
-    // 2. Configuration des notifications toast
+    // 2. Configuration des notifications toast (inchangé)
     console.log('🎯 Configuration du listener de notifications');
     const notificationHandler = ({type, message}) => {
         console.log('📬 Notification reçue:', {type, message});
@@ -37,8 +38,15 @@ const initializeSystems = () => {
     const currencySystem = new CurrencySystem();
     const autoClickManager = new AutoClickManager(currencySystem);
     const achievementSystem = new AchievementSystem();
+
+    // Important : Créer et assigner CardSystem avant CollectionSystem
+    console.log('🎴 Initialisation du système de cartes');
     const cardSystem = new CardSystem();
+    window.cardSystem = cardSystem;  // Assignation immédiate pour CollectionSystem
+
+    console.log('📦 Initialisation des systèmes de boosters et collection');
     const boosterSystem = new BoosterSystem(cardSystem);
+    const collectionSystem = new CollectionSystem(cardSystem);
 
     // 4. Système de sauvegarde
     console.log('💾 Initialisation du système de sauvegarde');
@@ -48,16 +56,27 @@ const initializeSystems = () => {
     window.currencySystem = currencySystem;
     window.autoClickManager = autoClickManager;
     window.achievementSystem = achievementSystem;
-    window.cardSystem = cardSystem;
     window.boosterSystem = boosterSystem;
     window.saveManager = saveManager;
+    window.collectionSystem = collectionSystem;
 
     // 6. Configuration des listeners de sauvegarde
     console.log('🔄 Configuration des événements de sauvegarde');
     boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_PURCHASED, () => saveManager.saveAll());
     boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_OPENED, () => saveManager.saveAll());
+    autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_ADDED, () => saveManager.saveAll());
+    autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_BOUGHT, () => saveManager.saveAll());
+    autoClickManager.on(AutoClickManager.EVENTS.PRODUCTION_UPDATED, () => saveManager.saveAll());
+    autoClickManager.on(AutoClickManager.EVENTS.TICK, () => saveManager.saveAll());
+    achievementSystem.on(AchievementSystem.EVENTS.ACHIEVEMENT_UNLOCKED, () => saveManager.saveAll());
+    achievementSystem.on(AchievementSystem.EVENTS.ACHIEVEMENT_PROGRESS, () => saveManager.saveAll());
 
-    // 7. Configuration des callbacks de la boutique
+    // Ajout des listeners pour les cartes et la collection
+    cardSystem.on(CardSystem.EVENTS.CARD_ADDED, () => saveManager.saveAll());
+    cardSystem.on(CardSystem.EVENTS.CARD_REMOVED, () => saveManager.saveAll());
+    collectionSystem.on(CollectionSystem.EVENTS.STATS_UPDATED, () => saveManager.saveAll());
+
+    // 7. Configuration des callbacks de la boutique (inchangé)
     window.shopCallbacks = {
         onPurchase: ({itemId, cost, effect}) => {
             if (effect.type === 'boosterPack') {
@@ -79,17 +98,17 @@ const initializeSystems = () => {
             saveManager.loadAll();
             // Test du système de notification après chargement
             setTimeout(() => {
-                notificationSystem.showSuccess('Système de notification initialisé');
+                notificationSystem.showSuccess('Partie chargée avec succès !');
             }, 100);
         }, 0);
     } else {
         console.log('🆕 Nouvelle partie détectée');
         setTimeout(() => {
-            notificationSystem.showSuccess('Système de notification initialisé');
+            notificationSystem.showSuccess('Bienvenue dans votre nouvelle partie !');
         }, 100);
     }
 
-    // 9. Configurer une sauvegarde avant de quitter
+    // 9. Configuration des sauvegardes
     window.addEventListener('beforeunload', () => {
         console.log('👋 Sauvegarde avant de quitter...');
         saveManager.saveAll();
@@ -105,21 +124,27 @@ const initializeSystems = () => {
         achievementSystem,
         saveManager,
         cardSystem,
-        boosterSystem
+        boosterSystem,
+        collectionSystem
     };
 };
 
 const initializeGenerators = () => {
-    autoClickManager.addGenerator('Basic', 1, 10, 'Générateur basique');
-    autoClickManager.addGenerator('Advanced', 8, 100, 'Générateur avancé');
-    autoClickManager.addGenerator('Pro', 47, 1000, 'Générateur pro');
-    autoClickManager.addGenerator('Elite', 260, 10000, 'Générateur élite');
+    console.log('Initialisation des générateurs...');
+    console.log(autoClickManager.hasGenerators);
+    if (!window.autoClickManager.hasGenerators) {
+        console.log('Initialisation des générateurs de base');
+        window.autoClickManager.addGenerator('Basic', 1, 10, 'Générateur basique');
+        window.autoClickManager.addGenerator('Advanced', 8, 100, 'Générateur avancé');
+        window.autoClickManager.addGenerator('Pro', 47, 1000, 'Générateur pro');
+        window.autoClickManager.addGenerator('Elite', 260, 10000, 'Générateur élite');
+    }
 };
+
 
 // Configuration de la sauvegarde automatique
 setInterval(() => saveManager.saveAll(), 60000);
 window.addEventListener('beforeunload', () => saveManager.saveAll());
-
 
 
 // Configuration de la sidebar et gestion des routes
@@ -151,7 +176,7 @@ const setupSidebar = () => {
                 currentModule.init();
                 break;
             case 'autoclickers':
-                currentModule = new AutoClickDisplay();
+                currentModule = new AutoClickDisplay(window.autoClickManager);
                 currentModule.init();
                 break;
             case 'achievements':
@@ -162,6 +187,10 @@ const setupSidebar = () => {
                 currentModule = new BoosterDisplay('mainContent');
                 currentModule.init();
                 currentModule.attachEventListeners();
+                break;
+            case 'collection':
+                currentModule = new CollectionDisplay('mainContent');
+                currentModule.init();
                 break;
             default:
                 console.log(`Route ${route} non implémentée`);
