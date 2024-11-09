@@ -17,12 +17,14 @@ import {BoosterDisplay} from './components/ui/BoostersDisplay.mjs';
 
 
 const initializeSystems = () => {
+    console.group('🎮 Initialisation des systèmes');
+
     // 1. Système de notification en premier
     console.log('🔔 Initialisation du système de notification');
     const notificationSystem = NotificationSystem.getInstance();
     window.notificationSystem = notificationSystem;
 
-    // 2. Configuration des notifications toast avec logs
+    // 2. Configuration des notifications toast
     console.log('🎯 Configuration du listener de notifications');
     const notificationHandler = ({type, message}) => {
         console.log('📬 Notification reçue:', {type, message});
@@ -30,28 +32,17 @@ const initializeSystems = () => {
     };
     notificationSystem.on(NotificationSystem.EVENTS.SHOW_NOTIFICATION, notificationHandler);
 
-    // Vérification que le listener est bien attaché
-    console.log('🔍 Nombre de listeners:',
-        notificationSystem.listenerCount(NotificationSystem.EVENTS.SHOW_NOTIFICATION));
-
-    // Test du système de notification
-    console.log('🧪 Test du système de notification');
-    setTimeout(() => {
-        notificationSystem.showSuccess('Système de notification initialisé');
-    }, 100);
-
     // 3. Systèmes de base
+    console.log('🏗️ Création des systèmes principaux');
     const currencySystem = new CurrencySystem();
     const autoClickManager = new AutoClickManager(currencySystem);
     const achievementSystem = new AchievementSystem();
     const cardSystem = new CardSystem();
     const boosterSystem = new BoosterSystem(cardSystem);
 
-    // 4. Système de sauvegarde (dépend des autres systèmes)
+    // 4. Système de sauvegarde
+    console.log('💾 Initialisation du système de sauvegarde');
     const saveManager = new SaveManager(notificationSystem);
-
-    boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_PURCHASED, () => saveManager.saveAll());
-    boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_OPENED, () => saveManager.saveAll());
 
     // 5. Exposition globale des systèmes
     window.currencySystem = currencySystem;
@@ -61,7 +52,12 @@ const initializeSystems = () => {
     window.boosterSystem = boosterSystem;
     window.saveManager = saveManager;
 
-    // Configuration des callbacks de la boutique
+    // 6. Configuration des listeners de sauvegarde
+    console.log('🔄 Configuration des événements de sauvegarde');
+    boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_PURCHASED, () => saveManager.saveAll());
+    boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_OPENED, () => saveManager.saveAll());
+
+    // 7. Configuration des callbacks de la boutique
     window.shopCallbacks = {
         onPurchase: ({itemId, cost, effect}) => {
             if (effect.type === 'boosterPack') {
@@ -74,6 +70,33 @@ const initializeSystems = () => {
         canAfford: (cost) => currencySystem.canSpend(cost),
         getCurrentLevel: () => 1
     };
+
+    // 8. Chargement des données sauvegardées
+    console.log('📂 Vérification des sauvegardes...');
+    if (saveManager.hasSaveData()) {
+        console.log('🔄 Chargement des données existantes');
+        setTimeout(() => {
+            saveManager.loadAll();
+            // Test du système de notification après chargement
+            setTimeout(() => {
+                notificationSystem.showSuccess('Système de notification initialisé');
+            }, 100);
+        }, 0);
+    } else {
+        console.log('🆕 Nouvelle partie détectée');
+        setTimeout(() => {
+            notificationSystem.showSuccess('Système de notification initialisé');
+        }, 100);
+    }
+
+    // 9. Configurer une sauvegarde avant de quitter
+    window.addEventListener('beforeunload', () => {
+        console.log('👋 Sauvegarde avant de quitter...');
+        saveManager.saveAll();
+    });
+
+    console.log('✅ Initialisation terminée');
+    console.groupEnd();
 
     return {
         notificationSystem,

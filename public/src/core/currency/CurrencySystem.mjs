@@ -1,4 +1,5 @@
 import { EventEmitter } from '../../utils/EventEmitter.mjs';
+import { NumberFormatter } from '../../utils/NumberFormatter.mjs'
 
 export class CurrencySystem extends EventEmitter {
     static EVENTS = {
@@ -25,7 +26,7 @@ export class CurrencySystem extends EventEmitter {
     }
 
     get formattedCurrency() {
-        return `${this.#formatNumber(this.#currency)} ¤`;
+        return `${NumberFormatter.format(this.#currency)} ¤`;
     }
 
     get multiplier() {
@@ -36,12 +37,29 @@ export class CurrencySystem extends EventEmitter {
         return this.#baseClickValue;
     }
 
-    // Méthodes principales
+    // Core methods
     add(amount) {
-        if (amount <= 0) return false;
+        console.group('💰 CurrencySystem.add()');
+        console.log('Paramètres:', {
+            montantDemandé: amount,
+            montantActuel: this.#currency,
+            timestamp: new Date()
+        });
+
+        if (amount <= 0) {
+            console.warn('❌ Montant invalide');
+            console.groupEnd();
+            return false;
+        }
 
         const oldValue = this.#currency;
         this.#currency += amount;
+
+        console.log('💵 Mise à jour effectuée:', {
+            ancien: oldValue,
+            ajouté: amount,
+            nouveau: this.#currency
+        });
 
         if (window.achievementSystem) {
             window.achievementSystem.checkAchievement('first-coins', this.#currency);
@@ -54,6 +72,7 @@ export class CurrencySystem extends EventEmitter {
             gained: amount
         });
 
+        console.groupEnd();
         return true;
     }
 
@@ -96,46 +115,51 @@ export class CurrencySystem extends EventEmitter {
         return true;
     }
 
-    // Méthodes de sauvegarde
+    // Save/Load methods
     save() {
-        return {
+        const saveData = {
             currency: this.#currency,
             baseClickValue: this.#baseClickValue,
             multiplier: this.#multiplier,
             lastUpdate: this.#lastUpdate
         };
+        console.log('💾 Données de sauvegarde CurrencySystem:', {
+            ...saveData,
+            timestamp: new Date()
+        });
+        return saveData;
     }
 
     load(data) {
         if (!data) return false;
 
         try {
-            this.#currency = Number(data.currency);
-            this.#baseClickValue = Number(data.baseClickValue);
-            this.#multiplier = Number(data.multiplier);
-            this.#lastUpdate = data.lastUpdate;
+            console.group('📂 Chargement CurrencySystem');
+            console.log('Données reçues:', data);
+
+            this.#currency = Number(data.currency) || 0;
+            this.#baseClickValue = Number(data.baseClickValue) || 1;
+            this.#multiplier = Number(data.multiplier) || 1;
+            this.#lastUpdate = data.lastUpdate || Date.now();
+
+            console.log('État après chargement:', {
+                currency: NumberFormatter.format(this.#currency),
+                baseClickValue: this.#baseClickValue,
+                multiplier: this.#multiplier,
+                lastUpdate: new Date(this.#lastUpdate)
+            });
 
             this.emit(CurrencySystem.EVENTS.CURRENCY_UPDATED, {
                 newValue: this.#currency,
                 loaded: true
             });
 
+            console.groupEnd();
             return true;
         } catch (error) {
-            console.error('Failed to load currency system:', error);
+            console.error('❌ Erreur lors du chargement currency:', error);
+            console.groupEnd();
             return false;
         }
-    }
-
-    // Méthode privée pour le formatage des nombres
-    #formatNumber(number) {
-        if (number < 1000) return number.toString();
-
-        const suffixes = ['', 'K', 'M', 'B', 'T'];
-        const magnitude = Math.floor(Math.log10(number) / 3);
-        const scaled = number / Math.pow(1000, magnitude);
-        const suffix = suffixes[magnitude];
-
-        return `${scaled.toFixed(1)}${suffix}`;
     }
 }
