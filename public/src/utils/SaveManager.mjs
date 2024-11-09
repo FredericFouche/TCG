@@ -16,10 +16,17 @@ export class SaveManager extends EventEmitter {
         BOOSTERS: 'boosters'
     };
 
+    static OFFLINE_CONFIG = {
+        MAX_OFFLINE_TIME: 86400,
+        MIN_SAVE_INTERVAL: 800
+    };
+
     #autoSaveInterval;
     #notificationSystem;
+    #lastSaveTimestamp = 0;
+    #lastUpdate = Date.now();
 
-    constructor(notificationSystem, autoSaveInterval = 60000) {
+    constructor(notificationSystem, autoSaveInterval = 1000) {
         super();
         this.#notificationSystem = notificationSystem;
         this.#setupAutoSave(autoSaveInterval);
@@ -35,62 +42,92 @@ export class SaveManager extends EventEmitter {
     async loadAll() {
         console.group('📂 Chargement des données');
         try {
-            // 1. Vérifier si on a des données à charger
-            const hasGenerators = localStorage.getItem(SaveManager.SAVE_KEYS.GENERATORS);
-            const hasCurrency = localStorage.getItem(SaveManager.SAVE_KEYS.CURRENCY);
+            // 1. Récupérer toutes les données
+            const savedData = {
+                currency: localStorage.getItem(SaveManager.SAVE_KEYS.CURRENCY),
+                generators: localStorage.getItem(SaveManager.SAVE_KEYS.GENERATORS),
+                achievements: localStorage.getItem(SaveManager.SAVE_KEYS.ACHIEVEMENTS),
+                boosters: localStorage.getItem(SaveManager.SAVE_KEYS.BOOSTERS)
+            };
 
-            if (!hasGenerators && !hasCurrency) {
+            // 2. Vérifier s'il y a des données à charger
+            if (!savedData.currency && !savedData.generators) {
                 console.log('ℹ️ Aucune donnée à charger');
                 console.groupEnd();
                 return false;
             }
 
-            // 2. Charger d'abord la currency (nécessaire pour les générateurs)
-            if (hasCurrency && window.currencySystem) {
+            // 3. Parser les données existantes
+            const parsedData = Object.entries(savedData).reduce((acc, [key, value]) => {
+                if (value) {
+                    try {
+                        acc[key] = JSON.parse(value);
+                    } catch (e) {
+                        console.warn(`⚠️ Erreur parsing ${key}:`, e);
+                    }
+                }
+                return acc;
+            }, {});
+
+            // 4. Calculer les gains hors-ligne avant tout chargement si on a des données de production
+            if (parsedData.generators?.lastUpdate) {
+                console.log('⏰ Calcul des gains hors-ligne');
+                this.#processOfflineGains(parsedData.generators.lastUpdate);
+            }
+
+            // 5. Charger la currency en premier (nécessaire pour les autres systèmes)
+            if (parsedData.currency && window.currencySystem) {
                 console.log('💰 Chargement currency');
-                const currencyData = JSON.parse(hasCurrency);
-                window.currencySystem.load(currencyData);
+                window.currencySystem.load(parsedData.currency);
             }
 
-            // 3. Initialiser les générateurs de base si nécessaire
-            if (window.autoClickManager && !window.autoClickManager.hasGenerators) {
-                console.log('🔧 Initialisation des générateurs de base');
-                window.autoClickManager.addGenerator('Basic', 1, 10, 'Générateur de base');
-                window.autoClickManager.addGenerator('Advanced', 8, 100, 'Générateur avancé');
-                window.autoClickManager.addGenerator('Pro', 47, 1000, 'Générateur pro');
-                window.autoClickManager.addGenerator('Elite', 260, 10000, 'Générateur élite');
+            // 6. Configuration des générateurs
+            if (window.autoClickManager) {
+                // 6.1. Initialiser les générateurs de base si nécessaire
+                if (!window.autoClickManager.hasGenerators) {
+                    console.log('🔧 Initialisation des générateurs de base');
+                    const defaultGenerators = [
+                        ['Basic', 1, 10, 'Générateur de base'],
+                        ['Advanced', 8, 100, 'Générateur avancé'],
+                        ['Pro', 47, 1000, 'Générateur pro'],
+                        ['Elite', 260, 10000, 'Générateur élite']
+                    ];
+                    defaultGenerators.forEach(([id, prod, cost, desc]) =>
+                        window.autoClickManager.addGenerator(id, prod, cost, desc));
+                }
+
+                // 6.2. Charger l'état des générateurs existants
+                if (parsedData.generators) {
+                    console.log('⚙️ Chargement générateurs');
+                    window.autoClickManager.load(parsedData.generators);
+                }
             }
 
-            // 4. Charger l'état des générateurs
-            if (hasGenerators && window.autoClickManager) {
-                console.log('⚙️ Chargement générateurs');
-                const generatorsData = JSON.parse(hasGenerators);
-                window.autoClickManager.load(generatorsData);
-            }
-
-            // 5. Charger les achievements après tout le reste
-            const achievementsData = localStorage.getItem(SaveManager.SAVE_KEYS.ACHIEVEMENTS);
-            if (achievementsData && window.achievementSystem) {
+            // 7. Charger les systèmes secondaires
+            if (parsedData.achievements && window.achievementSystem) {
                 console.log('🏆 Chargement achievements');
-                window.achievementSystem.load(JSON.parse(achievementsData));
+                window.achievementSystem.load(parsedData.achievements);
             }
 
-            // 6. Charger les boosters en dernier
-            const boostersData = localStorage.getItem(SaveManager.SAVE_KEYS.BOOSTERS);
-            if (boostersData && window.boosterSystem) {
+            if (parsedData.boosters && window.boosterSystem) {
                 console.log('📦 Chargement boosters');
-                window.boosterSystem.load(JSON.parse(boostersData));
+                window.boosterSystem.load(parsedData.boosters);
             }
 
+            // 8. Mise à jour du dernier timestamp
+            this.#lastUpdate = Date.now();
+
+            // 9. Notification et événements
             console.log('✅ Chargement terminé');
             this.emit(SaveManager.EVENTS.LOAD_COMPLETED);
             this.#notificationSystem?.showSuccess('Partie chargée avec succès !');
 
-            // Forcer une sauvegarde immédiate pour assurer la cohérence
+            // 10. Forcer une sauvegarde pour assurer la cohérence
             setTimeout(() => this.saveAll(), 1000);
 
             console.groupEnd();
             return true;
+
         } catch (error) {
             console.error('❌ Erreur lors du chargement:', error);
             this.emit(SaveManager.EVENTS.LOAD_ERROR, error);
@@ -100,88 +137,75 @@ export class SaveManager extends EventEmitter {
         }
     }
 
-    saveAll() {
-        console.group('💾 Sauvegarde globale');
+    async saveAll() {
+        const now = Date.now();
+        if (now - this.#lastSaveTimestamp < SaveManager.OFFLINE_CONFIG.MIN_SAVE_INTERVAL) {
+            return false;
+        }
+
         try {
-            if (window.autoClickManager) {
-                console.log('⚙️ Sauvegarde des générateurs');
-                const generatorsData = window.autoClickManager.save();
-                if (generatorsData) {
-                    const hasGenerators = generatorsData.generators &&
-                        Array.isArray(generatorsData.generators) &&
-                        generatorsData.generators.length > 0;
+            const saveData = {
+                timestamp: now,
+                lastUpdate: this.#lastUpdate,
+                generators: window.autoClickManager?.save(),
+                currency: window.currencySystem?.save(),
+                achievements: window.achievementSystem?.save(),
+                boosters: window.boosterSystem?.save()
+            };
 
-                    if (hasGenerators) {
-                        console.log('📊 État des générateurs:',
-                            generatorsData.generators.map(g => ({
-                                id: g.id,
-                                niveau: g.level,
-                                production: g.currentProduction
-                            }))
-                        );
-                        localStorage.setItem(
-                            SaveManager.SAVE_KEYS.GENERATORS,
-                            JSON.stringify(generatorsData)
-                        );
-                        console.log('✅ Générateurs sauvegardés');
-                    } else {
-                        console.warn('⚠️ Données de générateurs invalides');
-                    }
-                } else {
-                    console.warn('⚠️ Pas de données de générateurs à sauvegarder');
+            Object.entries(saveData).forEach(([key, value]) => {
+                if (value) {
+                    localStorage.setItem(SaveManager.SAVE_KEYS[key.toUpperCase()],
+                        JSON.stringify(value));
                 }
-            }
+            });
 
-            if (window.currencySystem) {
-                console.log('💰 Sauvegarde de la currency');
-                const currencyData = window.currencySystem.save();
-                if (currencyData) {
-                    localStorage.setItem(
-                        SaveManager.SAVE_KEYS.CURRENCY,
-                        JSON.stringify(currencyData)
-                    );
-                    console.log('✅ Currency sauvegardée:', currencyData);
-                }
-            }
-
-            if (window.achievementSystem) {
-                console.log('🏆 Sauvegarde des achievements');
-                const achievementsData = window.achievementSystem.save();
-                if (achievementsData) {
-                    localStorage.setItem(
-                        SaveManager.SAVE_KEYS.ACHIEVEMENTS,
-                        JSON.stringify(achievementsData)
-                    );
-                    console.log('✅ Achievements sauvegardés');
-                }
-            }
-
-            if (window.boosterSystem) {
-                console.log('📦 Sauvegarde des boosters');
-                const boostersData = window.boosterSystem.save();
-                if (boostersData) {
-                    localStorage.setItem(
-                        SaveManager.SAVE_KEYS.BOOSTERS,
-                        JSON.stringify(boostersData)
-                    );
-                    console.log('✅ Boosters sauvegardés');
-                }
-            }
-
-            localStorage.setItem(SaveManager.SAVE_KEYS.HAS_VISITED, 'true');
-
-            this.emit(SaveManager.EVENTS.SAVE_COMPLETED);
-            this.#notificationSystem?.showSuccess('Partie sauvegardée !');
-
-            console.log('✅ Sauvegarde globale terminée');
-            console.groupEnd();
+            this.#lastSaveTimestamp = now;
+            this.#lastUpdate = now;
             return true;
         } catch (error) {
-            console.error('❌ Erreur lors de la sauvegarde:', error);
-            this.emit(SaveManager.EVENTS.SAVE_ERROR, error);
-            this.#notificationSystem?.showError('Erreur lors de la sauvegarde');
-            console.groupEnd();
+            console.error('Erreur de sauvegarde:', error);
             return false;
+        }
+    }
+
+    #notifyOfflineGains(offlineSeconds, gains, production) {
+        const timeText = this.#formatOfflineTime(offlineSeconds);
+        const gainText = `Gains hors-ligne :\n` +
+            `+${NumberFormatter.format(gains)} ¤\n` +
+            `(${timeText} à ${NumberFormatter.format(production)}/sec)`;
+
+        this.#notificationSystem?.showSuccess(gainText);
+    }
+
+    #formatOfflineTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+
+        let timeText = '';
+        if (hours > 0) {
+            timeText += `${hours}h `;
+        }
+        if (minutes > 0 || hours === 0) {
+            timeText += `${minutes}min`;
+        }
+        return timeText;
+    }
+
+    #processOfflineGains(lastUpdate) {
+        const now = Date.now();
+        const offlineSeconds = Math.min(
+            Math.floor((now - lastUpdate) / 1000),
+            SaveManager.OFFLINE_CONFIG.MAX_OFFLINE_TIME
+        );
+
+        const production = window.autoClickManager?.totalProductionPerSecond ?? 0;
+        if (offlineSeconds > 0 && production > 0) {
+            const gains = Math.floor(offlineSeconds * production);
+            if (gains > 0) {
+                window.currencySystem?.add(gains);
+                this.#notifyOfflineGains(offlineSeconds, gains, production);
+            }
         }
     }
 

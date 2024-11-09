@@ -37,7 +37,6 @@ export class CurrencySystem extends EventEmitter {
         return this.#baseClickValue;
     }
 
-    // Core methods
     add(amount) {
         console.group('💰 CurrencySystem.add()');
         console.log('Paramètres:', {
@@ -115,51 +114,26 @@ export class CurrencySystem extends EventEmitter {
         return true;
     }
 
-    // Save/Load methods
     save() {
-        const saveData = {
+        return {
             currency: this.#currency,
             baseClickValue: this.#baseClickValue,
-            multiplier: this.#multiplier,
-            lastUpdate: this.#lastUpdate
+            multiplier: this.#multiplier
         };
-        console.log('💾 Données de sauvegarde CurrencySystem:', {
-            ...saveData,
-            timestamp: new Date()
-        });
-        return saveData;
     }
 
     load(data) {
         if (!data) return false;
 
-        try {
-            console.group('📂 Chargement CurrencySystem');
-            console.log('Données reçues:', data);
+        this.#currency = Number(data.currency) || 0;
+        this.#baseClickValue = Number(data.baseClickValue) || 1;
+        this.#multiplier = Number(data.multiplier) || 1;
 
-            this.#currency = Number(data.currency) || 0;
-            this.#baseClickValue = Number(data.baseClickValue) || 1;
-            this.#multiplier = Number(data.multiplier) || 1;
-            this.#lastUpdate = data.lastUpdate || Date.now();
+        this.emit(CurrencySystem.EVENTS.CURRENCY_UPDATED, {
+            newValue: this.#currency,
+            loaded: true
+        });
 
-            console.log('État après chargement:', {
-                currency: NumberFormatter.format(this.#currency),
-                baseClickValue: this.#baseClickValue,
-                multiplier: this.#multiplier,
-                lastUpdate: new Date(this.#lastUpdate)
-            });
-
-            this.emit(CurrencySystem.EVENTS.CURRENCY_UPDATED, {
-                newValue: this.#currency,
-                loaded: true
-            });
-
-            console.groupEnd();
-            return true;
-        } catch (error) {
-            console.error('❌ Erreur lors du chargement currency:', error);
-            console.groupEnd();
-            return false;
-        }
+        return true;
     }
 }

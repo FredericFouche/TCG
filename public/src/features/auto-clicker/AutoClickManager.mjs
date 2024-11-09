@@ -13,16 +13,11 @@ export class AutoClickManager extends EventEmitter {
     };
 
 
-    static MAX_OFFLINE_TIME = 86400;
-    static MIN_SAVE_INTERVAL = 30000;
-
     #generators;
     #currencySystem;
     #tickInterval;
     #isRunning;
     #totalProduction;
-    #lastSaveTimestamp = 0;
-    #lastUpdate;
 
     constructor(currencySystem) {
         super();
@@ -36,7 +31,6 @@ export class AutoClickManager extends EventEmitter {
         this.#isRunning = false;
         this.#tickInterval = null;
         this.#totalProduction = 0;
-        this.#lastUpdate = Date.now();
     }
 
     // Getters
@@ -119,95 +113,29 @@ export class AutoClickManager extends EventEmitter {
     }
 
     load(data) {
-        console.group('🔄 Chargement AutoClickManager');
-        console.log('Données reçues:', data);
+        if (!data?.generators) return false;
 
-        if (!data) {
-            console.warn('❌ Pas de données à charger');
-            console.groupEnd();
-            return false;
-        }
+        this.stop();
+        this.#generators.clear();
 
-        try {
-            // Arrêt de la production existante
-            console.log('🛑 Arrêt de la production existante');
-            this.stop();
-            this.#generators.clear();
-
-            // Chargement des générateurs
-            if (data.generators && Array.isArray(data.generators)) {
-                console.log('⚙️ Chargement des générateurs:', data.generators);
-
-                data.generators.forEach(generator => {
-                    // Vérification des données requises
-                    if (!generator.id || typeof generator.level !== 'number' ||
-                        !generator.baseProduction || !generator.baseCost) {
-                        console.warn('⚠️ Données de générateur invalides:', generator);
-                        return;
-                    }
-
-                    // Création du générateur avec toutes ses propriétés
-                    const newGenerator = {
-                        id: generator.id,
-                        level: generator.level || 0,
-                        baseProduction: generator.baseProduction,
-                        baseCost: generator.baseCost,
-                        currentProduction: generator.baseProduction * generator.level,
-                        description: generator.description || '',
-                        lastPurchaseCost: this.#calculateUpgradeCost({
-                            baseCost: generator.baseCost,
-                            level: Math.max(0, generator.level - 1)
-                        })
-                    };
-
-                    console.log(`📊 Configuration du générateur ${generator.id}:`, {
-                        niveau: newGenerator.level,
-                        production: newGenerator.currentProduction,
-                        derniercout: newGenerator.lastPurchaseCost
-                    });
-
-                    this.#generators.set(generator.id, newGenerator);
-                });
-
-                // Recalcul de la production totale
-                this.#totalProduction = Array.from(this.#generators.values())
-                    .reduce((total, gen) => total + gen.currentProduction, 0);
-
-                console.log('💰 Production totale calculée:', this.#totalProduction);
-            } else {
-                console.warn('⚠️ Pas de générateurs dans les données');
+        data.generators.forEach(generator => {
+            if (!generator.id || !generator.baseProduction || !generator.baseCost) {
+                return;
             }
 
-            // Gestion du lastUpdate
-            if (data.lastUpdate) {
-                console.log('⏰ Traitement du temps offline depuis:', new Date(data.lastUpdate));
-                this.#processOfflineProgress(data.lastUpdate);
-            }
-
-            // Mise à jour du lastUpdate
-            this.#lastUpdate = Date.now();
-            console.log('📅 Nouveau lastUpdate:', new Date(this.#lastUpdate));
-
-            // Notification de la mise à jour de production
-            this.emit(AutoClickManager.EVENTS.PRODUCTION_UPDATED, {
-                totalProduction: this.#totalProduction
+            this.#generators.set(generator.id, {
+                ...generator,
+                currentProduction: this.#calculateProduction(generator)
             });
+        });
 
-            // Démarrage si production > 0
-            if (this.#totalProduction > 0) {
-                console.log('▶️ Démarrage de la production:', this.#totalProduction, '/sec');
-                this.start();
-            } else {
-                console.log('⏸️ Pas de production active');
-            }
+        this.#updateTotalProduction();
 
-            console.groupEnd();
-            return true;
-        } catch (error) {
-            console.error('❌ Erreur lors du chargement:', error);
-            console.groupEnd();
-            return false;
+        if (this.#totalProduction > 0) {
+            this.start();
         }
+
+        return true;
     }
 
     #calculateUpgradeCost({ baseCost, level }) {
@@ -215,14 +143,7 @@ export class AutoClickManager extends EventEmitter {
     }
 
     save() {
-        const now = Date.now();
-
-        if (now - this.#lastSaveTimestamp < AutoClickManager.MIN_SAVE_INTERVAL) {
-            console.log('⏳ Sauvegarde ignorée (trop rapprochée)');
-            return null;
-        }
-
-        const saveData = {
+        return {
             generators: Array.from(this.#generators.values()).map(gen => ({
                 id: gen.id,
                 level: gen.level,
@@ -231,12 +152,8 @@ export class AutoClickManager extends EventEmitter {
                 currentProduction: gen.currentProduction,
                 description: gen.description
             })),
-            totalProduction: this.#totalProduction,
-            lastUpdate: this.#lastUpdate
+            totalProduction: this.#totalProduction
         };
-
-        this.#lastSaveTimestamp = now;
-        return saveData;
     }
 
     start(tickRate = 1000) {
@@ -276,116 +193,4 @@ export class AutoClickManager extends EventEmitter {
             totalProduction: this.#totalProduction
         });
     }
-
-    #processOfflineProgress(lastUpdate) {
-        console.group('🕒 Traitement de la production offline');
-
-        if (!lastUpdate) {
-            console.warn('❌ Pas de lastUpdate, arrêt du calcul');
-            console.groupEnd();
-            return;
-        }
-
-        const now = Date.now();
-        const lastUpdateDate = new Date(lastUpdate);
-
-        if (lastUpdate > now) {
-            console.warn('⚠️ lastUpdate dans le futur, utilisation du now');
-            lastUpdate = now;
-        }
-
-        console.log('⏱️ Timestamps:', {
-            lastUpdate: lastUpdateDate,
-            now: new Date(now),
-            difference: now - lastUpdate
-        });
-
-        let offlineTime = Math.floor((now - lastUpdate) / 1000);
-
-        if (offlineTime < 0) {
-            console.warn('⚠️ Temps offline négatif, correction à 0');
-            offlineTime = 0;
-        }
-
-        console.log('⌛ Temps offline initial:', offlineTime, 'secondes');
-
-        const previousOfflineTime = offlineTime;
-        offlineTime = Math.min(offlineTime, AutoClickManager.MAX_OFFLINE_TIME);
-
-        if (previousOfflineTime !== offlineTime) {
-            console.log('⚠️ Temps offline limité:', {
-                avant: previousOfflineTime,
-                après: offlineTime,
-                maxPermis: AutoClickManager.MAX_OFFLINE_TIME
-            });
-        }
-
-        if (offlineTime > 0 && this.#totalProduction > 0) {
-            const offlineProduction = Math.floor(offlineTime * this.#totalProduction);
-
-            console.log('📊 Production finale calculée:', {
-                tempsOffline: offlineTime,
-                productionParSec: this.#totalProduction,
-                productionTotale: offlineProduction
-            });
-
-            if (offlineProduction > 0) {
-                const addSuccess = this.#currencySystem.add(offlineProduction);
-                console.log('💰 Ajout de la production:', {
-                    montant: offlineProduction,
-                    succès: addSuccess ? '✅' : '❌'
-                });
-
-                if (addSuccess) {
-                    this.#emitOfflineProgress(offlineTime, offlineProduction);
-                }
-            }
-        } else {
-            console.log('ℹ️ Pas de production offline à calculer');
-        }
-
-        this.#lastUpdate = now;
-
-        console.groupEnd();
-    }
-
-    #emitOfflineProgress(time, production) {
-        this.emit(AutoClickManager.EVENTS.OFFLINE_PROGRESS, {
-            time,
-            production,
-            productionPerSecond: this.#totalProduction
-        });
-
-        const timeText = this.#formatOfflineTime(time);
-        const notifText = `Gains hors-ligne :\n` +
-            `+${this.#formatNumber(production)} ¤\n` +
-            `(${timeText} à ${this.#formatNumber(this.#totalProduction)}/sec)`;
-
-        if (window.notificationSystem) {
-            window.notificationSystem.showSuccess(notifText);
-        }
-    }
-
-    #formatOfflineTime(seconds) {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-
-        let timeText = '';
-        if (hours > 0) {
-            timeText += `${hours}h `;
-        }
-        if (minutes > 0 || hours === 0) {
-            timeText += `${minutes}min`;
-        }
-        return timeText;
-    }
-
-    #formatNumber(number) {
-        if (number < 1000) return number.toString();
-        const suffixes = ['', 'K', 'M', 'B', 'T'];
-        const magnitude = Math.floor(Math.log10(number) / 3);
-        const scaled = number / Math.pow(1000, magnitude);
-        return `${scaled.toFixed(1)}${suffixes[magnitude]}`;
-    }
-
 }

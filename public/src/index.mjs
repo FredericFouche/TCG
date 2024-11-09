@@ -117,15 +117,10 @@ const initializeGenerators = () => {
 };
 
 // Configuration de la sauvegarde automatique
-const setupAutoSave = (saveManager) => {
-    setInterval(() => {
-        saveManager.saveAll();
-    }, 60000);
+setInterval(() => saveManager.saveAll(), 60000);
+window.addEventListener('beforeunload', () => saveManager.saveAll());
 
-    window.addEventListener('beforeunload', () => {
-        saveManager.saveAll();
-    });
-};
+
 
 // Configuration de la sidebar et gestion des routes
 const setupSidebar = () => {
@@ -186,8 +181,6 @@ const setupSidebar = () => {
     return sidebar;
 };
 
-
-// Initialisation de l'application
 const initializeApp = () => {
     // 1. Initialiser les systèmes de base
     const systems = initializeSystems();
@@ -200,9 +193,6 @@ const initializeApp = () => {
         console.log('Première visite, initialisation des générateurs...');
         initializeGenerators();
     }
-
-    // 3. Configuration de la sauvegarde
-    setupAutoSave(systems.saveManager);
 
     // 4. Initialisation de l'interface
     const currencyDisplay = new CurrencyDisplay(systems.currencySystem);
