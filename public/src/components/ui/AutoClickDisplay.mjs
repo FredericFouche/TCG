@@ -24,9 +24,6 @@ export class AutoClickDisplay {
         this.#autoClickManager = window.autoClickManager;
         if (!this.#autoClickManager) throw new Error('AutoClickManager not found in window');
 
-        console.log('AutoClickManager au démarrage:', this.#autoClickManager);
-        console.log('Générateurs disponibles au démarrage:', this.#autoClickManager.generators);
-
         this.#syncState();
 
         this.#autoClickManager.on(AutoClickManager.EVENTS.TICK, this.#productionUpdateCallback);
@@ -43,13 +40,11 @@ export class AutoClickDisplay {
 
     #syncState() {
         const gens = this.#autoClickManager.generators;
-        console.log('Synchronisation - Générateurs reçus de AutoClickManager:', gens);
 
         this.#state = {
             totalProduction: this.#autoClickManager.totalProductionPerSecond,
             generators: [...gens]
         };
-        console.log('État après synchronisation:', this.#state);
     }
 
     #render() {
@@ -80,7 +75,6 @@ export class AutoClickDisplay {
 
     #renderGenerators() {
         const generators = this.#state.generators;
-        console.log('Générateurs disponibles:', generators);
 
         if (!generators || generators.length === 0) {
             console.log('Aucun générateur à afficher');
@@ -88,7 +82,6 @@ export class AutoClickDisplay {
         }
 
         const html = generators.map(generator => {
-            console.log('Génération HTML pour:', generator);
             return `
             <div class="generator-card" data-generator-id="${generator.id}">
                 <div class="generator-info">
@@ -107,7 +100,6 @@ export class AutoClickDisplay {
             </div>
         `});
 
-        console.log('HTML généré:', html);
         return html.join('');
     }
 

@@ -86,7 +86,6 @@ const initializeSystems = async () => {
     if (saveManager.hasSaveData()) {
         await saveManager.loadAll();
         console.log('État des générateurs après chargement:', autoClickManager.generators);
-        notificationSystem.showSuccess('Partie chargée avec succès ! 🎉');
     } else {
         notificationSystem.showSuccess('Bienvenue dans votre nouvelle partie !');
     }

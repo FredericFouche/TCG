@@ -38,27 +38,13 @@ export class CurrencySystem extends EventEmitter {
     }
 
     add(amount) {
-        console.group('💰 CurrencySystem.add()');
-        console.log('Paramètres:', {
-            montantDemandé: amount,
-            montantActuel: this.#currency,
-            timestamp: new Date()
-        });
-
         if (amount <= 0) {
             console.warn('❌ Montant invalide');
-            console.groupEnd();
             return false;
         }
 
         const oldValue = this.#currency;
         this.#currency += amount;
-
-        console.log('💵 Mise à jour effectuée:', {
-            ancien: oldValue,
-            ajouté: amount,
-            nouveau: this.#currency
-        });
 
         if (window.achievementSystem) {
             window.achievementSystem.checkAchievement('first-coins', this.#currency);
@@ -71,7 +57,6 @@ export class CurrencySystem extends EventEmitter {
             gained: amount
         });
 
-        console.groupEnd();
         return true;
     }
 

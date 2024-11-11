@@ -44,11 +44,6 @@ export class CardSystem {
         this.#nextCardId = Date.now();
     }
 
-    /**
-     * Crée une nouvelle carte avec la rareté spécifiée
-     * @param {string} rarity - Rareté de la carte à créer
-     * @returns {Card} Nouvelle carte créée
-     */
     createCard(rarity) {
         const template = CardSystem.CARD_TEMPLATES[rarity];
         if (!template) {
@@ -139,20 +134,10 @@ export class CardSystem {
         return true;
     }
 
-    /**
-     * Récupère une carte par son ID
-     * @param {string} cardId - L'ID de la carte
-     * @returns {Card|null} La carte ou null si non trouvée
-     */
     getCard(cardId) {
         return this.#cards.get(cardId) || null;
     }
 
-    /**
-     * Récupère toutes les cartes selon des critères
-     * @param {Object} filters - Critères de filtrage
-     * @returns {Card[]} Liste des cartes filtrées
-     */
     getCards(filters = {}) {
         let cards = Array.from(this.#cards.values());
 
@@ -169,10 +154,6 @@ export class CardSystem {
         return cards;
     }
 
-    /**
-     * Obtient des statistiques sur la collection
-     * @returns {Object} Statistiques de la collection
-     */
     getStats() {
         const stats = {
             totalCards: 0,
@@ -193,76 +174,20 @@ export class CardSystem {
         return stats;
     }
 
-    /**
-     * Sauvegarde la collection dans le localStorage
-     * @private
-     */
-    #saveToStorage() {
-        console.log('Sauvegarde...');
-        console.log('Cards à sauvegarder:', Array.from(this.#cards.values()));
-        const saveData = Array.from(this.#cards.values()).map(card => card.toJSON());
-        console.log('SaveData:', saveData);
-        localStorage.setItem('cardCollection', JSON.stringify(saveData));
-        console.log('Vérification après sauvegarde:', localStorage.getItem('cardCollection'));
-    }
-
-    async #loadFromStorage() {
-        try {
-            const saveData = localStorage.getItem('cardCollection');
-            if (!saveData) {
-                this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
-                    cardCount: 0
-                });
-                return;
-            }
-
-            const cardDataArray = JSON.parse(saveData);
-            this.#cards.clear();
-
-            for (const cardData of cardDataArray) {
-                const card = Card.fromJSON(cardData);
-                this.#cards.set(card.id, card);
-            }
-
-            this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
-                cardCount: this.#cards.size
-            });
-        } catch (error) {
-            console.error('Erreur lors du chargement de la collection:', error);
-            this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
-                cardCount: 0,
-                error
-            });
-        }
-    }
-
     clearCollection() {
         this.#cards.clear();
         this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_CLEARED);
         return true;
     }
 
-    /**
-     * Abonne une fonction à un événement
-     * @param {string} event - Type d'événement
-     * @param {Function} callback - Fonction à appeler
-     */
     on(event, callback) {
         this.#eventEmitter.on(event, callback);
     }
 
-    /**
-     * Désabonne une fonction d'un événement
-     * @param {string} event - Type d'événement
-     * @param {Function} callback - Fonction à désabonner
-     */
     off(event, callback) {
         this.#eventEmitter.off(event, callback);
     }
-    /**
-     * Sauvegarde l'état actuel du système de cartes
-     * @returns {Object} Les données à sauvegarder
-     */
+
     save() {
         return {
             cards: Array.from(this.#cards.values()).map(card => card.toJSON()),
@@ -270,10 +195,6 @@ export class CardSystem {
         };
     }
 
-    /**
-     * Charge l'état du système de cartes
-     * @param {Object} saveData - Les données à charger
-     */
     load(saveData) {
         if (!saveData) return;
 

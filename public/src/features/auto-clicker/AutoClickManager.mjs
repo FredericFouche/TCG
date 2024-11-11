@@ -49,8 +49,6 @@ export class AutoClickManager extends EventEmitter {
     }
 
     addGenerator(id, baseProduction, baseCost, description = '') {
-        console.log(`Tentative d'ajout du générateur ${id}`);
-
         if (this.#generators.has(id)) {
             console.warn(`⚠️ Le générateur ${id} existe déjà`);
             return false;
@@ -67,7 +65,6 @@ export class AutoClickManager extends EventEmitter {
         };
 
         this.#generators.set(id, generator);
-        console.log(`✅ Générateur ${id} ajouté:`, generator);
 
         this.emit(AutoClickManager.EVENTS.GENERATOR_ADDED, {generator});
         this.#updateTotalProduction();
@@ -132,7 +129,6 @@ export class AutoClickManager extends EventEmitter {
     }
 
     load(data) {
-        console.log('⏳ Chargement des générateurs:', data);
 
         if (!data?.generators?.length) {
             console.log('❌ Pas de générateurs à charger');
@@ -140,22 +136,16 @@ export class AutoClickManager extends EventEmitter {
         }
 
         this.stop();
-        // On ne clear plus les générateurs !
-        // this.#generators.clear();
 
         data.generators.forEach(generator => {
-            console.log('📥 Mise à jour du générateur:', generator);
-            // On vérifie si le générateur existe déjà
             const existingGenerator = this.#generators.get(generator.id);
             if (existingGenerator) {
-                // On met à jour uniquement le niveau et la production
                 existingGenerator.level = generator.level;
                 existingGenerator.currentProduction = generator.baseProduction * generator.level;
                 existingGenerator.lastPurchaseCost = generator.lastPurchaseCost;
             }
         });
 
-        console.log('✅ État final des générateurs:', this.#generators);
         this.#updateTotalProduction();
 
         if (this.#totalProduction > 0) {
@@ -193,7 +183,6 @@ export class AutoClickManager extends EventEmitter {
             this.stop();
         }
 
-        console.log('Démarrage du tick avec production de', this.#totalProduction, '/sec');
         this.#isRunning = true;
         this.#tickInterval = setInterval(() => this.#tick(), tickRate);
     }
