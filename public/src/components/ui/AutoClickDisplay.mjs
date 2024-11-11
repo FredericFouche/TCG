@@ -5,7 +5,6 @@ export class AutoClickDisplay {
     #container;
     #state;
     #autoClickManager;
-    #generatorBoughtCallback;
     #notificationSystem;
 
     constructor() {
@@ -16,46 +15,41 @@ export class AutoClickDisplay {
 
         this.#notificationSystem = NotificationSystem.getInstance();
         this.#autoClickManager = window.autoClickManager;
-
-        this.#productionUpdateCallback = (data) => {
-            this.#state.totalProduction = data.production;
-            this.#state.generators = this.#autoClickManager.generators;
-            this.#updateUI();
-        };
-
-        this.#generatorBoughtCallback = ({generator}) => {
-            this.#state.generators = this.#autoClickManager.generators;
-            this.#updateUI();
-            this.#notificationSystem.showSuccess(`Générateur ${generator.id} amélioré au niveau ${generator.level} !`);
-        };
     }
 
     init() {
         this.#container = document.getElementById('mainContent');
-        if (!this.#container) {
-            throw new Error('Container not found');
-        }
+        if (!this.#container) throw new Error('Container not found');
 
         this.#autoClickManager = window.autoClickManager;
-        if (!this.#autoClickManager) {
-            throw new Error('AutoClickManager not found in window');
-        }
+        if (!this.#autoClickManager) throw new Error('AutoClickManager not found in window');
 
+        console.log('AutoClickManager au démarrage:', this.#autoClickManager);
+        console.log('Générateurs disponibles au démarrage:', this.#autoClickManager.generators);
 
-        this.#state.totalProduction = this.#autoClickManager.totalProductionPerSecond;
-        this.#state.generators = this.#autoClickManager.generators;
-
+        this.#syncState();
 
         this.#autoClickManager.on(AutoClickManager.EVENTS.TICK, this.#productionUpdateCallback);
         this.#autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_BOUGHT, this.#generatorBoughtCallback);
-        this.#autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_ADDED, (data) => {
-            this.#state.generators = this.#autoClickManager.generators;
+        this.#autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_ADDED, () => {
+            this.#syncState();
             this.#updateUI();
         });
         this.#autoClickManager.on(AutoClickManager.EVENTS.PRODUCTION_UPDATED, this.#productionUpdateCallback);
 
         this.#render();
         this.#bindEvents();
+    }
+
+    #syncState() {
+        const gens = this.#autoClickManager.generators;
+        console.log('Synchronisation - Générateurs reçus de AutoClickManager:', gens);
+
+        this.#state = {
+            totalProduction: this.#autoClickManager.totalProductionPerSecond,
+            generators: [...gens]
+        };
+        console.log('État après synchronisation:', this.#state);
     }
 
     #render() {
@@ -74,14 +68,28 @@ export class AutoClickDisplay {
         `;
     }
 
+    #productionUpdateCallback = (data) => {
+        this.#syncState();
+        this.#updateUI();
+    };
+
+    #generatorBoughtCallback = ({generator}) => {
+        this.#syncState();
+        this.#updateUI();
+    };
+
     #renderGenerators() {
         const generators = this.#state.generators;
+        console.log('Générateurs disponibles:', generators);
 
         if (!generators || generators.length === 0) {
+            console.log('Aucun générateur à afficher');
             return '<p>Aucun générateur disponible</p>';
         }
 
-        return generators.map(generator => `
+        const html = generators.map(generator => {
+            console.log('Génération HTML pour:', generator);
+            return `
             <div class="generator-card" data-generator-id="${generator.id}">
                 <div class="generator-info">
                     <h3 class="generator-title">${generator.id}</h3>
@@ -97,7 +105,10 @@ export class AutoClickDisplay {
                     </button>
                 </div>
             </div>
-        `).join('');
+        `});
+
+        console.log('HTML généré:', html);
+        return html.join('');
     }
 
     #formatNumber(number) {
@@ -153,34 +164,15 @@ export class AutoClickDisplay {
                 const generatorId = e.target.dataset.generatorId;
                 const cost = parseInt(e.target.dataset.cost);
 
-                if (!window.currencySystem.canSpend(cost)) {
+                const success = this.#autoClickManager.buyGenerator(generatorId);
+
+                if (!success) {
                     e.target.classList.add('error');
                     setTimeout(() => e.target.classList.remove('error'), 500);
-                    this.#notificationSystem.showError(`Pas assez de ressources ! (Coût: ${this.#formatNumber(cost)} ¤)`);
-                    return;
-                }
-
-                const success = this.#autoClickManager.buyGenerator(generatorId);
-                if (!success) {
-                    this.#notificationSystem.showError('Erreur lors de l\'achat du générateur');
                 }
             }
         });
     }
-
-    #productionUpdateCallback = (data) => {
-        const newProduction = data?.production;
-        if (typeof newProduction === 'number' && !isNaN(newProduction)) {
-            this.#state.totalProduction = newProduction;
-        }
-
-        const newGenerators = this.#autoClickManager.generators;
-        if (Array.isArray(newGenerators) && newGenerators.length > 0) {
-            this.#state.generators = newGenerators;
-        }
-
-        this.#updateUI();
-    };
 
     #calculateNextCost(generator) {
         return Math.floor(generator.baseCost * Math.pow(1.15, generator.level));
@@ -190,5 +182,6 @@ export class AutoClickDisplay {
         this.#autoClickManager?.off(AutoClickManager.EVENTS.TICK, this.#productionUpdateCallback);
         this.#autoClickManager?.off(AutoClickManager.EVENTS.GENERATOR_BOUGHT, this.#generatorBoughtCallback);
         this.#autoClickManager?.off(AutoClickManager.EVENTS.PRODUCTION_UPDATED, this.#productionUpdateCallback);
+        this.#autoClickManager?.off(AutoClickManager.EVENTS.GENERATOR_ADDED, this.#syncState);
     }
 }

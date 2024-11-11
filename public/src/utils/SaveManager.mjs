@@ -1,4 +1,5 @@
 import { EventEmitter } from './EventEmitter.mjs';
+import {NumberFormatter} from "./NumberFormatter.mjs";
 
 export class SaveManager extends EventEmitter {
     static EVENTS = {
@@ -27,11 +28,16 @@ export class SaveManager extends EventEmitter {
     #notificationSystem;
     #lastSaveTimestamp = 0;
     #lastUpdate = Date.now();
+    #isSaving = false;
 
-    constructor(notificationSystem, autoSaveInterval = 3000) {
+    constructor(notificationSystem, autoSaveInterval = 5000) {
         super();
         this.#notificationSystem = notificationSystem;
         this.#setupAutoSave(autoSaveInterval);
+
+        window.addEventListener('beforeunload', () => {
+            this.saveAll(true).then(r => { if (r) this.#notificationSystem?.showInfo('Sauvegarde effectuée') });
+        });
     }
 
     hasSaveData() {
@@ -53,14 +59,12 @@ export class SaveManager extends EventEmitter {
                 collection: localStorage.getItem(SaveManager.SAVE_KEYS.COLLECTION)
             };
 
-            // 2. Vérifier s'il y a des données à charger
             if (!savedData.currency && !savedData.generators) {
                 console.log('ℹ️ Aucune donnée à charger');
                 console.groupEnd();
                 return false;
             }
 
-            // 3. Parser les données existantes
             const parsedData = Object.entries(savedData).reduce((acc, [key, value]) => {
                 if (value) {
                     try {
@@ -72,22 +76,21 @@ export class SaveManager extends EventEmitter {
                 return acc;
             }, {});
 
-            // 4. Calculer les gains hors-ligne avant tout chargement si on a des données de production
             if (parsedData.generators?.lastUpdate) {
                 console.log('⏰ Calcul des gains hors-ligne');
                 this.#processOfflineGains(parsedData.generators.lastUpdate);
             }
 
-            // 5. Charger la currency en premier (nécessaire pour les autres systèmes)
             if (parsedData.currency && window.currencySystem) {
                 console.log('💰 Chargement currency');
                 window.currencySystem.load(parsedData.currency);
             }
 
-            // 6. Configuration des générateurs
             if (window.autoClickManager) {
-                // 6.1. Initialiser les générateurs de base si nécessaire
-                if (!window.autoClickManager.hasGenerators) {
+                if (parsedData.generators?.generators?.length > 0) {
+                    console.log(`⚙️ Chargement de ${parsedData.generators.generators.length} générateurs`);
+                    window.autoClickManager.load(parsedData.generators);
+                } else if (!window.autoClickManager.hasGenerators) {
                     console.log('🔧 Initialisation des générateurs de base');
                     const defaultGenerators = [
                         ['Basic', 1, 10, 'Générateur de base'],
@@ -98,13 +101,8 @@ export class SaveManager extends EventEmitter {
                     defaultGenerators.forEach(([id, prod, cost, desc]) =>
                         window.autoClickManager.addGenerator(id, prod, cost, desc));
                 }
-
-                // 6.2. Charger l'état des générateurs existants
-                if (parsedData.generators) {
-                    console.log('⚙️ Chargement générateurs');
-                    window.autoClickManager.load(parsedData.generators);
-                }
             }
+
             if (parsedData.cards && window.cardSystem) {
                 console.log('🎴 Chargement système de cartes');
                 window.cardSystem.load(parsedData.cards);
@@ -126,12 +124,10 @@ export class SaveManager extends EventEmitter {
             }
 
             this.#lastUpdate = Date.now();
-
             console.log('✅ Chargement terminé');
             this.emit(SaveManager.EVENTS.LOAD_COMPLETED);
             this.#notificationSystem?.showSuccess('Partie chargée avec succès !');
 
-            // 10. Forcer une sauvegarde pour assurer la cohérence
             setTimeout(() => this.saveAll(), 1000);
 
             console.groupEnd();
@@ -146,13 +142,19 @@ export class SaveManager extends EventEmitter {
         }
     }
 
-    async saveAll() {
+    async saveAll(force = false) {
         const now = Date.now();
-        if (now - this.#lastSaveTimestamp < SaveManager.OFFLINE_CONFIG.MIN_SAVE_INTERVAL) {
+
+        // Vérifier si on peut sauvegarder
+        if (!force &&
+            (this.#isSaving ||
+                now - this.#lastSaveTimestamp < SaveManager.OFFLINE_CONFIG.MIN_SAVE_INTERVAL)) {
             return false;
         }
 
         try {
+            this.#isSaving = true;
+
             const saveData = {
                 timestamp: now,
                 lastUpdate: this.#lastUpdate,
@@ -164,19 +166,38 @@ export class SaveManager extends EventEmitter {
                 collection: window.collectionSystem?.save()
             };
 
-            Object.entries(saveData).forEach(([key, value]) => {
+            // On vérifie qu'il y a des données à sauvegarder
+            const hasData = Object.values(saveData).some(value => value !== undefined);
+            if (!hasData) {
+                return false;
+            }
+
+            // Sauvegarder chaque système
+            for (const [key, value] of Object.entries(saveData)) {
                 if (value) {
-                    localStorage.setItem(SaveManager.SAVE_KEYS[key.toUpperCase()],
-                        JSON.stringify(value));
+                    try {
+                        const saveKey = SaveManager.SAVE_KEYS[key.toUpperCase()];
+                        if (saveKey) {
+                            localStorage.setItem(saveKey, JSON.stringify(value));
+                        }
+                    } catch (e) {
+                        console.error(`Erreur lors de la sauvegarde de ${key}:`, e);
+                    }
                 }
-            });
+            }
 
             this.#lastSaveTimestamp = now;
             this.#lastUpdate = now;
+            localStorage.setItem(SaveManager.SAVE_KEYS.HAS_VISITED, 'true');
+
+            this.emit(SaveManager.EVENTS.SAVE_COMPLETED);
             return true;
         } catch (error) {
             console.error('Erreur de sauvegarde:', error);
+            this.emit(SaveManager.EVENTS.SAVE_ERROR, error);
             return false;
+        } finally {
+            this.#isSaving = false;
         }
     }
 
@@ -237,8 +258,21 @@ export class SaveManager extends EventEmitter {
             clearInterval(this.#autoSaveInterval);
         }
 
-        this.#autoSaveInterval = setInterval(() => {
-            this.saveAll();
+        console.log('⚙️ Configuration de l\'autosave toutes les', interval, 'ms');
+
+        this.#autoSaveInterval = setInterval(async () => {
+            try {
+                await this.saveAll();
+            } catch (error) {
+                console.error('❌ Erreur lors de l\'autosave:', error);
+                this.emit(SaveManager.EVENTS.SAVE_ERROR, error);
+            }
         }, interval);
+
+        window.addEventListener('beforeunload', () => {
+            if (this.#autoSaveInterval) {
+                clearInterval(this.#autoSaveInterval);
+            }
+        });
     }
 }

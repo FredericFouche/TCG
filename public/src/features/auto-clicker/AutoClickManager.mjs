@@ -1,4 +1,6 @@
 import {EventEmitter} from '../../utils/EventEmitter.mjs';
+import {NumberFormatter} from "../../utils/NumberFormatter.mjs";
+import {NotificationSystem} from "../../utils/NotificationSystem.mjs";
 
 export class AutoClickManager extends EventEmitter {
     static EVENTS = {
@@ -33,6 +35,11 @@ export class AutoClickManager extends EventEmitter {
     }
 
     // Getters
+    get hasGenerators() {
+        const count = this.#generators.size;
+        return count > 0;
+    }
+
     get generators() {
         return Array.from(this.#generators.values());
     }
@@ -41,12 +48,11 @@ export class AutoClickManager extends EventEmitter {
         return this.#totalProduction;
     }
 
-    get hasGenerators() {
-        return this.#generators.size > 0;
-    }
-
     addGenerator(id, baseProduction, baseCost, description = '') {
+        console.log(`Tentative d'ajout du générateur ${id}`);
+
         if (this.#generators.has(id)) {
+            console.warn(`⚠️ Le générateur ${id} existe déjà`);
             return false;
         }
 
@@ -61,6 +67,8 @@ export class AutoClickManager extends EventEmitter {
         };
 
         this.#generators.set(id, generator);
+        console.log(`✅ Générateur ${id} ajouté:`, generator);
+
         this.emit(AutoClickManager.EVENTS.GENERATOR_ADDED, {generator});
         this.#updateTotalProduction();
 
@@ -75,6 +83,14 @@ export class AutoClickManager extends EventEmitter {
         }
 
         const cost = this.#calculateUpgradeCost(generator);
+        const notificationSystem = NotificationSystem.getInstance();
+
+        if (!this.#currencySystem.canSpend?.(cost)) {
+            notificationSystem.showError(
+                `Pas assez de ressources ! (Coût: ${NumberFormatter.format(cost)})`
+            );
+            return false;
+        }
 
         if (!this.#currencySystem.spend?.(cost)) {
             return false;
@@ -90,6 +106,10 @@ export class AutoClickManager extends EventEmitter {
             generator,
             cost
         });
+
+        notificationSystem.showSuccess(
+            `Générateur ${generator.id} amélioré au niveau ${generator.level} !`
+        );
 
         if (!this.#isRunning && this.#totalProduction > 0) {
             this.start();
@@ -112,32 +132,44 @@ export class AutoClickManager extends EventEmitter {
     }
 
     load(data) {
-        if (!data?.generators) return false;
+        console.log('⏳ Chargement des générateurs:', data);
+
+        if (!data?.generators?.length) {
+            console.log('❌ Pas de générateurs à charger');
+            return false;
+        }
 
         this.stop();
-        this.#generators.clear();
+        // On ne clear plus les générateurs !
+        // this.#generators.clear();
 
         data.generators.forEach(generator => {
-            if (!generator.id || !generator.baseProduction || !generator.baseCost) {
-                return;
+            console.log('📥 Mise à jour du générateur:', generator);
+            // On vérifie si le générateur existe déjà
+            const existingGenerator = this.#generators.get(generator.id);
+            if (existingGenerator) {
+                // On met à jour uniquement le niveau et la production
+                existingGenerator.level = generator.level;
+                existingGenerator.currentProduction = generator.baseProduction * generator.level;
+                existingGenerator.lastPurchaseCost = generator.lastPurchaseCost;
             }
-
-            this.#generators.set(generator.id, {
-                ...generator,
-                currentProduction: this.#calculateProduction(generator)
-            });
         });
 
+        console.log('✅ État final des générateurs:', this.#generators);
         this.#updateTotalProduction();
 
         if (this.#totalProduction > 0) {
             this.start();
         }
 
+        this.emit(AutoClickManager.EVENTS.GENERATOR_LOADED, {
+            generators: this.generators
+        });
+
         return true;
     }
 
-    #calculateUpgradeCost({ baseCost, level }) {
+    #calculateUpgradeCost({baseCost, level}) {
         return Math.floor(baseCost * Math.pow(1.15, level));
     }
 
@@ -148,9 +180,10 @@ export class AutoClickManager extends EventEmitter {
                 level: gen.level,
                 baseProduction: gen.baseProduction,
                 baseCost: gen.baseCost,
-                currentProduction: gen.currentProduction,
-                description: gen.description
+                description: gen.description,
+                lastPurchaseCost: gen.lastPurchaseCost
             })),
+            lastUpdate: Date.now(),
             totalProduction: this.#totalProduction
         };
     }
