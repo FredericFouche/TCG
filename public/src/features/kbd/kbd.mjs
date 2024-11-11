@@ -1,6 +1,6 @@
 import {EventEmitter} from "../../utils/EventEmitter.mjs";
 
-class Keyboard extends EventEmitter {
+export class Keyboard extends EventEmitter {
     constructor() {
         super();
         this._init();
