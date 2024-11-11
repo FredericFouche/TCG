@@ -14,50 +14,62 @@ import {TutorialManager} from './features/tutorial/TutorialManager.mjs';
 import {CardSystem} from './core/cards/CardSystem.mjs';
 import {BoosterSystem} from './core/booster/BoosterSystem.mjs';
 import {BoosterDisplay} from './components/ui/BoostersDisplay.mjs';
+import {CollectionSystem} from './core/collection/CollectionSystem.mjs';
+import {CollectionDisplay} from './components/ui/CollectionDisplay.mjs';
 
-
-const initializeSystems = () => {
+const initializeSystems = async () => {
     console.group('🎮 Initialisation des systèmes');
 
-    // 1. Système de notification en premier
-    console.log('🔔 Initialisation du système de notification');
     const notificationSystem = NotificationSystem.getInstance();
     window.notificationSystem = notificationSystem;
 
-    // 2. Configuration des notifications toast
-    console.log('🎯 Configuration du listener de notifications');
     const notificationHandler = ({type, message}) => {
         console.log('📬 Notification reçue:', {type, message});
         Toast.show(message, type);
     };
     notificationSystem.on(NotificationSystem.EVENTS.SHOW_NOTIFICATION, notificationHandler);
 
-    // 3. Systèmes de base
-    console.log('🏗️ Création des systèmes principaux');
     const currencySystem = new CurrencySystem();
     const autoClickManager = new AutoClickManager(currencySystem);
     const achievementSystem = new AchievementSystem();
     const cardSystem = new CardSystem();
-    const boosterSystem = new BoosterSystem(cardSystem);
+    window.cardSystem = cardSystem;
 
-    // 4. Système de sauvegarde
-    console.log('💾 Initialisation du système de sauvegarde');
+    const defaultGenerators = [
+        ['Basic', 1, 10, 'Générateur basique'],
+        ['Advanced', 8, 100, 'Générateur avancé'],
+        ['Pro', 47, 1000, 'Générateur pro'],
+        ['Elite', 260, 10000, 'Générateur élite']
+    ];
+
+    console.log('🎮 Initialisation des générateurs de base');
+    defaultGenerators.forEach(([id, prod, cost, desc]) => {
+        autoClickManager.addGenerator(id, prod, cost, desc);
+    });
+
+    const boosterSystem = new BoosterSystem(cardSystem);
+    const collectionSystem = new CollectionSystem(cardSystem);
     const saveManager = new SaveManager(notificationSystem);
 
-    // 5. Exposition globale des systèmes
     window.currencySystem = currencySystem;
     window.autoClickManager = autoClickManager;
     window.achievementSystem = achievementSystem;
-    window.cardSystem = cardSystem;
     window.boosterSystem = boosterSystem;
     window.saveManager = saveManager;
+    window.collectionSystem = collectionSystem;
 
-    // 6. Configuration des listeners de sauvegarde
-    console.log('🔄 Configuration des événements de sauvegarde');
     boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_PURCHASED, () => saveManager.saveAll());
     boosterSystem.on(BoosterSystem.EVENTS.BOOSTER_OPENED, () => saveManager.saveAll());
+    autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_ADDED, () => saveManager.saveAll());
+    autoClickManager.on(AutoClickManager.EVENTS.GENERATOR_BOUGHT, () => saveManager.saveAll());
+    autoClickManager.on(AutoClickManager.EVENTS.PRODUCTION_UPDATED, () => saveManager.saveAll());
+    autoClickManager.on(AutoClickManager.EVENTS.TICK, () => saveManager.saveAll());
+    achievementSystem.on(AchievementSystem.EVENTS.ACHIEVEMENT_UNLOCKED, () => saveManager.saveAll());
+    achievementSystem.on(AchievementSystem.EVENTS.ACHIEVEMENT_PROGRESS, () => saveManager.saveAll());
+    cardSystem.on(CardSystem.EVENTS.CARD_ADDED, () => saveManager.saveAll());
+    cardSystem.on(CardSystem.EVENTS.CARD_REMOVED, () => saveManager.saveAll());
+    collectionSystem.on(CollectionSystem.EVENTS.STATS_UPDATED, () => saveManager.saveAll());
 
-    // 7. Configuration des callbacks de la boutique
     window.shopCallbacks = {
         onPurchase: ({itemId, cost, effect}) => {
             if (effect.type === 'boosterPack') {
@@ -71,29 +83,15 @@ const initializeSystems = () => {
         getCurrentLevel: () => 1
     };
 
-    // 8. Chargement des données sauvegardées
-    console.log('📂 Vérification des sauvegardes...');
     if (saveManager.hasSaveData()) {
-        console.log('🔄 Chargement des données existantes');
-        setTimeout(() => {
-            saveManager.loadAll();
-            // Test du système de notification après chargement
-            setTimeout(() => {
-                notificationSystem.showSuccess('Système de notification initialisé');
-            }, 100);
-        }, 0);
+        await saveManager.loadAll();
+        console.log('État des générateurs après chargement:', autoClickManager.generators);
+        notificationSystem.showSuccess('Partie chargée avec succès ! 🎉');
     } else {
-        console.log('🆕 Nouvelle partie détectée');
-        setTimeout(() => {
-            notificationSystem.showSuccess('Système de notification initialisé');
-        }, 100);
+        notificationSystem.showSuccess('Bienvenue dans votre nouvelle partie !');
     }
 
-    // 9. Configurer une sauvegarde avant de quitter
-    window.addEventListener('beforeunload', () => {
-        console.log('👋 Sauvegarde avant de quitter...');
-        saveManager.saveAll();
-    });
+    window.addEventListener('beforeunload', () => saveManager.saveAll(true));
 
     console.log('✅ Initialisation terminée');
     console.groupEnd();
@@ -105,27 +103,15 @@ const initializeSystems = () => {
         achievementSystem,
         saveManager,
         cardSystem,
-        boosterSystem
+        boosterSystem,
+        collectionSystem
     };
 };
 
-const initializeGenerators = () => {
-    autoClickManager.addGenerator('Basic', 1, 10, 'Générateur basique');
-    autoClickManager.addGenerator('Advanced', 8, 100, 'Générateur avancé');
-    autoClickManager.addGenerator('Pro', 47, 1000, 'Générateur pro');
-    autoClickManager.addGenerator('Elite', 260, 10000, 'Générateur élite');
-};
-
 // Configuration de la sauvegarde automatique
-const setupAutoSave = (saveManager) => {
-    setInterval(() => {
-        saveManager.saveAll();
-    }, 60000);
+setInterval(() => saveManager.saveAll(), 60000);
+window.addEventListener('beforeunload', () => saveManager.saveAll());
 
-    window.addEventListener('beforeunload', () => {
-        saveManager.saveAll();
-    });
-};
 
 // Configuration de la sidebar et gestion des routes
 const setupSidebar = () => {
@@ -156,7 +142,7 @@ const setupSidebar = () => {
                 currentModule.init();
                 break;
             case 'autoclickers':
-                currentModule = new AutoClickDisplay();
+                currentModule = new AutoClickDisplay(window.autoClickManager);
                 currentModule.init();
                 break;
             case 'achievements':
@@ -167,6 +153,10 @@ const setupSidebar = () => {
                 currentModule = new BoosterDisplay('mainContent');
                 currentModule.init();
                 currentModule.attachEventListeners();
+                break;
+            case 'collection':
+                currentModule = new CollectionDisplay('mainContent');
+                currentModule.init();
                 break;
             default:
                 console.log(`Route ${route} non implémentée`);
@@ -187,31 +177,20 @@ const setupSidebar = () => {
 };
 
 
-// Initialisation de l'application
-const initializeApp = () => {
-    // 1. Initialiser les systèmes de base
-    const systems = initializeSystems();
+const initializeApp = async () => {
+    try {
+        const systems = await initializeSystems();
+        const currencyDisplay = new CurrencyDisplay(systems.currencySystem);
+        currencyDisplay.mount();
 
-    // 2. Charger les données ou initialiser les générateurs
-    if (systems.saveManager.hasSaveData()) {
-        console.log('Chargement des données sauvegardées...');
-        systems.saveManager.loadAll();
-    } else {
-        console.log('Première visite, initialisation des générateurs...');
-        initializeGenerators();
+        const sidebar = setupSidebar();
+        sidebar.emit('navigate', {route: 'dashboard'});
+
+        setInterval(() => systems.saveManager.saveAll(), 60000);
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation:', error);
+        window.notificationSystem?.showError('Erreur lors de l\'initialisation du jeu');
     }
-
-    // 3. Configuration de la sauvegarde
-    setupAutoSave(systems.saveManager);
-
-    // 4. Initialisation de l'interface
-    const currencyDisplay = new CurrencyDisplay(systems.currencySystem);
-    currencyDisplay.mount();
-
-    // 5. Configuration et démarrage de la sidebar
-    const sidebar = setupSidebar();
-    sidebar.emit('navigate', {route: 'dashboard'});
 };
 
-// Démarrage de l'application
-initializeApp();
+initializeApp().catch(console.error);
