@@ -75,12 +75,12 @@ export class CollectionDisplay {
                             <div class="card ${card.rarity}" data-card-id="${card.id}">
                                 <div class="card-header">
                                     <h3>${card.name}</h3>
-                                    <span class="card-amount">x${card.amount}</span>
+                                    <span class="card-amount">${card.amount}</span>
                                 </div>
                                 <div class="card-content">
                                     <p class="card-description">${card.description}</p>
                                     <p class="card-rarity">${card.rarity}</p>
-                                    <p class="card-value">Valeur: ${card.getCurrentValue()}</p>
+                                    <p class="card-value">¤ ${card.getCurrentValue()}</p>
                                 </div>
                                 ${card.isLocked ? '<div class="card-locked">🔒</div>' : ''}
                             </div>

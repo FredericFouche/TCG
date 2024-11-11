@@ -66,7 +66,6 @@ export class CardSystem {
             description: `Une carte ${rarity} représentant ${randomName}`
         });
 
-        // On ajoute automatiquement la carte à la collection
         this.addCard(card);
 
         return card;
@@ -77,7 +76,11 @@ export class CardSystem {
             throw new Error('L\'objet doit être une instance de Card');
         }
 
-        const existingCard = this.#cards.get(card.id);
+        const cardKey = `${card.rarity}_${card.name}`;
+
+        const existingCard = Array.from(this.#cards.values())
+            .find(c => `${c.rarity}_${c.name}` === cardKey);
+
         if (existingCard) {
             existingCard.addCopy(card.amount);
             this.#eventEmitter.emit(CardSystem.EVENTS.CARD_UPDATED, { card: existingCard });
@@ -87,6 +90,30 @@ export class CardSystem {
         this.#cards.set(card.id, card);
         this.#eventEmitter.emit(CardSystem.EVENTS.CARD_ADDED, { card });
         return true;
+    }
+
+    migrateCards() {
+        const cards = Array.from(this.#cards.values());
+        const uniqueCards = new Map();
+
+        cards.forEach(card => {
+            const cardKey = `${card.rarity}_${card.name}`;
+            if (uniqueCards.has(cardKey)) {
+                const existingCard = uniqueCards.get(cardKey);
+                existingCard.addCopy(card.amount);
+            } else {
+                uniqueCards.set(cardKey, card);
+            }
+        });
+
+        this.#cards.clear();
+        uniqueCards.forEach(card => {
+            this.#cards.set(card.id, card);
+        });
+
+        this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
+            cardCount: this.#cards.size
+        });
     }
 
     removeCard(cardId, amount = null) {
@@ -259,15 +286,13 @@ export class CardSystem {
                 this.#cards.set(card.id, card);
             }
 
+            this.migrateCards();
+
             this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
                 cardCount: this.#cards.size
             });
         } catch (error) {
             console.error('Erreur lors du chargement de la collection:', error);
-            this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
-                cardCount: 0,
-                error
-            });
         }
     }
 }

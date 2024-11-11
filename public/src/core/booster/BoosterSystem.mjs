@@ -129,6 +129,7 @@ export class BoosterSystem extends EventEmitter {
 
         for (let i = 0; i < config.cardCount; i++) {
             const rarity = this.#determineCardRarity(boosterType);
+
             const card = this.#cardSystem.createCard(rarity);
             cards.push(card);
 
