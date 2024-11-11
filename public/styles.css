@@ -1207,3 +1207,110 @@ html, body {
     pointer-events: none;
 }
 
+/* Collection Container */
+.collection-container {
+    padding: var(--spacing-md);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--border-radius-md);
+}
+
+.collection-stats {
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.stat-item {
+    background: var(--color-accent-secondary);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.stat-label {
+    font-size: var(--font-size-md);
+    font-weight: bold;
+    margin-bottom: var(--spacing-sm);
+}
+
+.stat-value {
+    font-size: var(--font-size-xl);
+    color: var(--color-text-primary);
+}
+
+.collection-cards {
+}
+
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.card {
+    background: var(--color-accent-secondary);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.card-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.card-amount {
+    font-size: var(--font-size-md);
+    color: var(--color-text-secondary);
+}
+
+.card-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card-description {
+    font-size: var(--font-size-md);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.card-rarity {
+    font-size: var(--font-size-md);
+    color: var(--color-text-secondary);
+    display: flex;
+    justify-content: end;
+}
+
+.card-value {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-primary);
+    display: flex;
+    justify-content: end;
+}
+
+.card-locked {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
