@@ -79,6 +79,11 @@ export class Card {
     get isLocked() { return this.#isLocked; }
     get amount() { return this.#amount; }
 
+    updateImage(newImage) {
+        this.#image = newImage;
+        return this;
+    }
+
     /**
      * Calcule la valeur actuelle de la carte en tenant compte de la rareté
      * @returns {number} La valeur calculée
@@ -169,10 +174,10 @@ export class Card {
         return {
             id: this.#id,
             name: this.#name,
-            description: this.#description,
-            image: this.#image,
             rarity: this.#rarity,
             baseValue: this.#baseValue,
+            image: this.#image,
+            description: this.#description,
             acquiredDate: this.#acquiredDate.toISOString(),
             isLocked: this.#isLocked,
             amount: this.#amount
@@ -188,10 +193,10 @@ export class Card {
         const card = new Card({
             id: json.id,
             name: json.name,
-            description: json.description,
-            image: json.image,
             rarity: json.rarity,
             baseValue: json.baseValue,
+            image: json.image,
+            description: json.description,
             amount: json.amount
         });
 

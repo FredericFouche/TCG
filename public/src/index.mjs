@@ -176,7 +176,6 @@ const setupSidebar = () => {
     return sidebar;
 };
 
-
 const initializeApp = async () => {
     try {
         const systems = await initializeSystems();

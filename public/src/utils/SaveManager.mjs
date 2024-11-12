@@ -96,16 +96,20 @@ export class SaveManager extends EventEmitter {
     }
 
     #parseSavedData(savedData) {
-        return Object.entries(savedData).reduce((acc, [key, value]) => {
+        const parsed = Object.entries(savedData).reduce((acc, [key, value]) => {
             if (value) {
                 try {
                     acc[key] = JSON.parse(value);
+                    if (key === 'cards') {
+                        console.log('SaveManager - Données chargées:', acc[key]);
+                    }
                 } catch (e) {
                     console.warn(`⚠️ Erreur parsing ${key}:`, e);
                 }
             }
             return acc;
         }, {});
+        return parsed;
     }
 
     #processOfflineGainsIfNeeded(parsedData) {

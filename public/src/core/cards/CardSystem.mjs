@@ -14,23 +14,58 @@ export class CardSystem {
     static CARD_TEMPLATES = {
         common: {
             baseNames: ["Gobelin", "Soldat", "Archer", "Paysan", "Rat"],
-            baseValue: 10
+            baseValue: 10,
+            images: {
+                "Gobelin": "/assets/cards/common/gobelin.jpg",
+                "Soldat": "/assets/cards/common/soldat.jpg",
+                "Archer": "/assets/cards/common/archer.jpg",
+                "Paysan": "/assets/cards/common/paysan.jpg",
+                "Rat": "/assets/cards/common/rat.jpg"
+            }
         },
         uncommon: {
             baseNames: ["Chevalier", "Mage", "Prêtre", "Voleur", "Druide"],
-            baseValue: 25
+            baseValue: 25,
+            images: {
+                "Chevalier": "/assets/cards/uncommon/chevalier.jpg",
+                "Mage": "/assets/cards/uncommon/mage.jpg",
+                "Prêtre": "/assets/cards/uncommon/pretre.jpg",
+                "Voleur": "/assets/cards/uncommon/voleur.jpg",
+                "Druide": "/assets/cards/uncommon/druide.jpg"
+            }
         },
         rare: {
             baseNames: ["Capitaine", "Archimage", "Champion", "Assassin", "Oracle"],
-            baseValue: 50
+            baseValue: 50,
+            images: {
+                "Capitaine": "/assets/cards/rare/capitaine.jpg",
+                "Archimage": "/assets/cards/rare/archimage.jpg",
+                "Champion": "/assets/cards/rare/champion.jpg",
+                "Assassin": "/assets/cards/rare/assassin.jpg",
+                "Oracle": "/assets/cards/rare/oracle.jpg"
+            }
         },
         epic: {
             baseNames: ["Dragon", "Licorne", "Phénix", "Golem", "Hydre"],
-            baseValue: 100
+            baseValue: 100,
+            images: {
+                "Dragon": "/assets/cards/epic/dragon.jpg",
+                "Licorne": "/assets/cards/epic/licorne.jpg",
+                "Phénix": "/assets/cards/epic/phenix.jpg",
+                "Golem": "/assets/cards/epic/golem.jpg",
+                "Hydre": "/assets/cards/epic/hydre.jpg"
+            }
         },
         legendary: {
             baseNames: ["Ancien Dragon", "Roi des Rois", "Dieu Déchu", "Avatar", "Titan"],
-            baseValue: 250
+            baseValue: 250,
+            images: {
+                "Ancien Dragon": "/assets/cards/legendary/ancien_dragon.jpg",
+                "Roi des Rois": "/assets/cards/legendary/roi_des_rois.jpg",
+                "Dieu Déchu": "/assets/cards/legendary/dieu_dechu.jpg",
+                "Avatar": "/assets/cards/legendary/avatar.jpg",
+                "Titan": "/assets/cards/legendary/titan.jpg"
+            }
         }
     };
 
@@ -53,16 +88,20 @@ export class CardSystem {
         const randomName = template.baseNames[Math.floor(Math.random() * template.baseNames.length)];
         const id = `${rarity}_${this.#nextCardId++}`;
 
+        console.log('Template images:', template.images); // Débogage
+        console.log('Selected name:', randomName); // Débogage
+        console.log('Image URL:', template.images[randomName]); // Débogage
+
         const card = new Card({
             id,
             name: randomName,
             rarity,
             baseValue: template.baseValue,
-            description: `Une carte ${rarity} représentant ${randomName}`
+            description: `Une carte ${rarity} représentant ${randomName}`,
+            image: template.images[randomName]
         });
 
         this.addCard(card);
-
         return card;
     }
 
@@ -85,30 +124,6 @@ export class CardSystem {
         this.#cards.set(card.id, card);
         this.#eventEmitter.emit(CardSystem.EVENTS.CARD_ADDED, { card });
         return true;
-    }
-
-    migrateCards() {
-        const cards = Array.from(this.#cards.values());
-        const uniqueCards = new Map();
-
-        cards.forEach(card => {
-            const cardKey = `${card.rarity}_${card.name}`;
-            if (uniqueCards.has(cardKey)) {
-                const existingCard = uniqueCards.get(cardKey);
-                existingCard.addCopy(card.amount);
-            } else {
-                uniqueCards.set(cardKey, card);
-            }
-        });
-
-        this.#cards.clear();
-        uniqueCards.forEach(card => {
-            this.#cards.set(card.id, card);
-        });
-
-        this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
-            cardCount: this.#cards.size
-        });
     }
 
     removeCard(cardId, amount = null) {
@@ -203,11 +218,13 @@ export class CardSystem {
             this.#nextCardId = saveData.nextCardId || Date.now();
 
             for (const cardData of saveData.cards) {
+                // Recréer l'image selon le template
+                const template = CardSystem.CARD_TEMPLATES[cardData.rarity];
+                cardData.image = template.images[cardData.name];
+
                 const card = Card.fromJSON(cardData);
                 this.#cards.set(card.id, card);
             }
-
-            this.migrateCards();
 
             this.#eventEmitter.emit(CardSystem.EVENTS.COLLECTION_LOADED, {
                 cardCount: this.#cards.size
