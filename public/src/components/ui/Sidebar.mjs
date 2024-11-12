@@ -7,14 +7,14 @@ export class Sidebar extends EventEmitter {
     #elements = {};
     #eventHandlers = new Map();
     #menuItems = [
-        { route: 'dashboard', icon: 'fa-home', text: 'Dashboard' },
-        { route: 'shop', icon: 'fa-store', text: 'Boutique' },
-        { route: 'boosters', icon: 'fa-box-open', text: 'Boosters' },
-        { route: 'collection', icon: 'fa-layer-group', text: 'Collection' },
-        { route: 'market', icon: 'fa-shopping-cart', text: 'Marché' },
-        { route: 'autoclickers', icon: 'fa-robot', text: 'Auto Clickers' },
-        { route: 'achievements', icon: 'fa-trophy', text: 'Achievements' },
-        { route: 'stats', icon: 'fa-chart-line', text: 'Statistiques' }
+        { route: 'dashboard', icon: 'fa-home', text: 'Dashboard', kbd: '1' },
+        { route: 'shop', icon: 'fa-store', text: 'Boutique', kbd: '2' },
+        { route: 'boosters', icon: 'fa-box-open', text: 'Boosters', kbd: '3' },
+        { route: 'collection', icon: 'fa-layer-group', text: 'Collection', kbd: '4' },
+        { route: 'market', icon: 'fa-shopping-cart', text: 'Marché', kbd: '5' },
+        { route: 'autoclickers', icon: 'fa-robot', text: 'Auto Clickers', kbd: '6' },
+        { route: 'achievements', icon: 'fa-trophy', text: 'Achievements', kbd: 'a' },
+        { route: 'stats', icon: 'fa-chart-line', text: 'Statistiques', kbd: 's' },
     ];
 
     constructor(containerId = 'sidebar') {
@@ -41,6 +41,7 @@ export class Sidebar extends EventEmitter {
                         <i class="fas ${item.icon}"></i>
                     </div>
                     <span class="menu-text">${item.text}</span>
+                    <div class="kbd"><div class="kbd-text">${item.kbd}</div></div>
                 </li>
             `).join('');
 
@@ -60,6 +61,7 @@ export class Sidebar extends EventEmitter {
                         <i class="fas fa-question-circle"></i>
                     </div>
                     <span class="menu-text">Tutoriel</span>
+                    <div class="kbd"><div class="kbd-text">T</div></div>
                 </button>
             </div>
         `;
@@ -71,12 +73,10 @@ export class Sidebar extends EventEmitter {
     }
 
     #bindEvents() {
-        // Toggle sidebar
         this.#eventHandlers.set('toggle', () => this.toggle());
         this.#elements.toggleBtn.addEventListener('click',
             this.#eventHandlers.get('toggle'));
 
-        // Navigation
         this.#elements.menuItems.forEach(item => {
             const route = item.dataset.route;
             this.#eventHandlers.set(`navigate_${route}`, () => this.navigateTo(route));
@@ -117,13 +117,6 @@ export class Sidebar extends EventEmitter {
             item.classList.toggle('active', item.dataset.route === route);
         });
         this.emit('navigate', { route: this.#activeRoute });
-    }
-
-    getState() {
-        return {
-            isCollapsed: this.#isCollapsed,
-            activeRoute: this.#activeRoute
-        };
     }
 
     destroy() {

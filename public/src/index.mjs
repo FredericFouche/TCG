@@ -16,6 +16,7 @@ import {BoosterSystem} from './core/booster/BoosterSystem.mjs';
 import {BoosterDisplay} from './components/ui/BoostersDisplay.mjs';
 import {CollectionSystem} from './core/collection/CollectionSystem.mjs';
 import {CollectionDisplay} from './components/ui/CollectionDisplay.mjs';
+import {Keyboard} from './features/kbd/kbd.mjs';
 
 const initializeSystems = async () => {
     console.group('🎮 Initialisation des systèmes');
@@ -86,7 +87,6 @@ const initializeSystems = async () => {
     if (saveManager.hasSaveData()) {
         await saveManager.loadAll();
         console.log('État des générateurs après chargement:', autoClickManager.generators);
-        notificationSystem.showSuccess('Partie chargée avec succès ! 🎉');
     } else {
         notificationSystem.showSuccess('Bienvenue dans votre nouvelle partie !');
     }
@@ -176,7 +176,6 @@ const setupSidebar = () => {
     return sidebar;
 };
 
-
 const initializeApp = async () => {
     try {
         const systems = await initializeSystems();
@@ -185,6 +184,9 @@ const initializeApp = async () => {
 
         const sidebar = setupSidebar();
         sidebar.emit('navigate', {route: 'dashboard'});
+
+        const kbd = new Keyboard();
+        kbd.on('navigate', ({route}) => sidebar.emit('navigate', {route}));
 
         setInterval(() => systems.saveManager.saveAll(), 60000);
     } catch (error) {
