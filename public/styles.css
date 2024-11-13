@@ -19,6 +19,17 @@ html, body {
     --color-border: #2c2d32;
     --color-border-success: rgba(255, 209, 71, 0.66);
 
+    --card-width: 200px;
+    --card-height: 300px;
+
+    --card-base-width: 15vw;
+    --card-base-height: calc(var(--card-base-width) * 1.4);
+    --card-spacing: 2vw;
+    --row-spacing: 4vh;
+    --container-padding: 2vw;
+    --min-scale: 0.8;
+    --max-scale: 1.2;
+
     /* Spacing */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
@@ -1142,23 +1153,22 @@ html, body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     grid-gap: 1rem;
+    padding: 1rem;
 }
 
 .booster-card {
-    background-color: var(--color-accent-secondary);
+    background: linear-gradient(45deg, #2a2a2a, #3a3a3a);
     border-radius: var(--border-radius-md);
     padding: 1rem;
     height: 15rem;
+    position: relative;
     box-shadow: var(--shadow-md);
-    transition: transform 0.3s ease;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-}
-
-.booster-card:hover {
-    transform: translateY(-5px);
+    transform-style: preserve-3d;
+    transition: transform 0.6s ease-in-out;
 }
 
 .booster-type {
@@ -1172,7 +1182,7 @@ html, body {
 .booster-date {
     font-size: var(--font-size-md);
     color: var(--color-text-secondary);
-    margin-bottom: 1rem
+    margin-bottom: 1rem;
 }
 
 .open-booster-btn {
@@ -1191,6 +1201,100 @@ html, body {
     touch-action: manipulation;
 }
 
+/* Booster Opening Overlay */
+.booster-opening-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+}
+
+.booster-opening-overlay.active {
+    display: block;
+}
+
+.booster-opening-overlay > .backdrop-blur {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+}
+
+.cards-reveal-container {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+}
+
+.revealed-card {
+    background: rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s;
+    aspect-ratio: 512/768;
+    border-radius: var(--border-radius-md);
+    width: var(--card-base-width);
+    height: calc(var(--card-base-width) * 1.5);
+}
+
+/* First row positions */
+.revealed-card:nth-child(1) { transform: translateX(calc(-2 * (var(--card-base-width) + var(--card-spacing)))) translateY(calc(-0.5 * var(--row-spacing))); }
+.revealed-card:nth-child(2) { transform: translateX(calc(-1 * (var(--card-base-width) + var(--card-spacing)))) translateY(calc(-0.5 * var(--row-spacing))); }
+.revealed-card:nth-child(3) { transform: translateX(0) translateY(calc(-0.5 * var(--row-spacing))); }
+.revealed-card:nth-child(4) { transform: translateX(calc(1 * (var(--card-base-width) + var(--card-spacing)))) translateY(calc(-0.5 * var(--row-spacing))); }
+.revealed-card:nth-child(5) { transform: translateX(calc(2 * (var(--card-base-width) + var(--card-spacing)))) translateY(calc(-0.5 * var(--row-spacing))); }
+
+/* Second row positions */
+.revealed-card:nth-child(6) { transform: translateX(calc(-2 * (var(--card-base-width) + var(--card-spacing)))) translateY(calc(0.5 * var(--row-spacing))); }
+.revealed-card:nth-child(7) { transform: translateX(calc(-1 * (var(--card-base-width) + var(--card-spacing)))) translateY(calc(0.5 * var(--row-spacing))); }
+.revealed-card:nth-child(8) { transform: translateX(0) translateY(calc(0.5 * var(--row-spacing))); }
+.revealed-card:nth-child(9) { transform: translateX(calc(1 * (var(--card-base-width) + var(--card-spacing)))) translateY(calc(0.5 * var(--row-spacing))); }
+.revealed-card:nth-child(10) { transform: translateX(calc(2 * (var(--card-base-width) + var(--card-spacing)))) translateY(calc(0.5 * var(--row-spacing))); }
+
+/* Show animation */
+.revealed-card.show {
+    opacity: 1;
+}
+
+/* Hover effect */
+.revealed-card.show:hover {
+    transform: scale(1.1);
+    z-index: 1002;
+}
+/* Booster Opening Animation */
+.booster-card.opening {
+    animation: openBoosterPreReveal 0.5s ease-in-out forwards;
+}
+
+@keyframes openBoosterPreReveal {
+    0% { transform: scale(1) rotateY(0); }
+    100% {
+        transform: scale(1.2) rotateY(180deg);
+        opacity: 0;
+    }
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    :root {
+        --card-base-width: 18vw;
+        --card-spacing: 3vw;
+        --row-spacing: 6vh;
+    }
+}
+
+@media (max-width: 480px) {
+    :root {
+        --card-base-width: 25vw;
+        --card-spacing: 4vw;
+        --row-spacing: 8vh;
+    }
+}
+
+/* Hover Effects */
 @media (hover: hover) {
     .open-booster-btn:hover:not(:disabled) {
         background: color-mix(in srgb, var(--color-accent-primary) 85%, white);
@@ -1200,12 +1304,6 @@ html, body {
         transform: translateY(-2px);
     }
 }
-
-.booster-opened {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
 /* KBD icon */
 
 .kbd {

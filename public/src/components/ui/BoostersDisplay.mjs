@@ -1,4 +1,3 @@
-import {EventEmitter} from '../../utils/EventEmitter.mjs';
 import {BoosterSystem} from '../../core/booster/BoosterSystem.mjs';
 
 export class BoosterDisplay {
@@ -61,6 +60,8 @@ export class BoosterDisplay {
                 </div>
             </div>
         `;
+
+        this.attachEventListeners();
     }
 
     #renderBooster(booster) {
@@ -68,12 +69,87 @@ export class BoosterDisplay {
         const openButton = !booster.opened ? `<button class="open-booster-btn" data-id="${booster.id}">Open</button>` : '';
 
         return `
-    <div class="booster-card ${openedClass}" data-id="${booster.id}">
-        <div class="booster-type">${booster.type}</div>
-        <div class="booster-date">Purchased on: ${new Date(booster.purchaseDate).toLocaleString()}</div>
-        ${openButton}
-    </div>
-    `;
+            <div class="booster-card ${openedClass}" data-id="${booster.id}">
+                <div class="booster-type">${booster.type}</div>
+                <div class="booster-date">Purchased on: ${new Date(booster.purchaseDate).toLocaleString()}</div>
+                ${openButton}
+            </div>
+        `;
+    }
+
+    async #handleBoosterOpen(boosterId) {
+        const cards = this.#boosterSystem.openBooster(boosterId);
+        if (!cards) return;
+
+        const existingOverlays = document.querySelectorAll('.booster-opening-overlay');
+        existingOverlays.forEach(overlay => overlay.remove());
+
+        const overlay = document.createElement('div');
+        overlay.className = 'booster-opening-overlay';
+
+        const backdropBlur = document.createElement('div');
+        backdropBlur.className = 'backdrop-blur';
+
+        const cardsContainer = document.createElement('div');
+        cardsContainer.className = 'cards-reveal-container';
+
+        overlay.appendChild(backdropBlur);
+        overlay.appendChild(cardsContainer);
+        document.body.appendChild(overlay);
+
+        requestAnimationFrame(() => {
+            overlay.classList.add('active');
+        });
+
+        const boosterCard = document.querySelector(`.booster-card[data-id="${boosterId}"]`);
+        if (boosterCard) {
+            boosterCard.classList.add('opening');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        cards.forEach((card, index) => {
+            const cardElement = document.createElement('div');
+            cardElement.className = `revealed-card ${card.rarity}`;
+            cardElement.innerHTML = `
+            <div class="card-content">
+            <div class="card ${card.rarity}" data-card-id="${card.id}">
+                            <div class="card-image-container">
+                                <img src="${card.image}" alt="${card.name}" class="card-image" />
+                                <div class="card-rarity-badge card-rarity">${card.rarity}</div>
+                                ${card.isLocked ? '<div class="card-locked">🔒</div>' : ''}
+                                <div class="card-overlay">
+                                    <div class="card-header">
+                                        <h3>${card.name}</h3>
+                                        <span class="card-amount">x${card.amount}</span>
+                                    </div>
+                                    <div class="card-content">
+                                        <p class="card-value">¤ ${card.getCurrentValue()}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-details">
+                                <p class="card-description">${card.description}</p>
+                            </div>
+         </div>
+        `;
+            cardsContainer.appendChild(cardElement);
+
+            requestAnimationFrame(() => {
+                cardElement.offsetHeight;
+                setTimeout(() => {
+                    cardElement.classList.add('show');
+                }, index * 200);
+            });
+        });
+
+        overlay.addEventListener('click', () => {
+            overlay.classList.remove('active');
+            setTimeout(() => {
+                overlay.remove();
+                this.render();
+            }, 300);
+        });
     }
 
     attachEventListeners() {
@@ -81,13 +157,13 @@ export class BoosterDisplay {
             const button = event.target.closest('.open-booster-btn');
             if (button) {
                 const boosterId = button.dataset.id;
-                this.#emitOpenEvent(boosterId);
+                this.#handleBoosterOpen(boosterId).then(r => 'Cartes affichées');
             }
         });
     }
 
     #emitOpenEvent(boosterId) {
-        console.log('Open booster:', boosterId);
-        this.#boosterSystem.openBooster(boosterId);
+        console.log('Émission de l\'événement d\'ouverture:', boosterId);
+        this.#boosterSystem.emit(BoosterSystem.EVENTS.BOOSTER_OPEN_REQUESTED, {boosterId});
     }
 }

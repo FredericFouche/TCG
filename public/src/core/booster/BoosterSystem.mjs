@@ -87,20 +87,16 @@ export class BoosterSystem extends EventEmitter {
             return null;
         }
 
-        // Génération des cartes du booster
         const cards = this.#generateBoosterCards(booster.type);
 
-        // Marquer le booster comme ouvert
         booster.opened = true;
         booster.cards = cards;
 
-        // Mise à jour des statistiques
         this.#statistics.totalOpened++;
         cards.forEach(card => {
             this.#statistics.rarityDistribution[card.rarity]++;
         });
 
-        // Sauvegarde de l'historique
         this.#boosterHistory.push({
             id: booster.id,
             type: booster.type,
@@ -108,7 +104,6 @@ export class BoosterSystem extends EventEmitter {
             cards: cards.map(card => ({ id: card.id, rarity: card.rarity }))
         });
 
-        // Ajout des cartes à la collection du joueur
         cards.forEach(card => {
             this.#cardSystem.addCard(card);
         });
@@ -116,7 +111,6 @@ export class BoosterSystem extends EventEmitter {
         // Émission de l'événement
         this.emit(BoosterSystem.EVENTS.BOOSTER_OPENED, { booster, cards });
 
-        // Suppression du booster de la liste des boosters non ouverts
         this.#boosters.delete(boosterId);
 
         return cards;
