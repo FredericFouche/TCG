@@ -133,6 +133,7 @@ export class BoosterDisplay {
                             </div>
          </div>
         `;
+
             cardsContainer.appendChild(cardElement);
 
             requestAnimationFrame(() => {
@@ -142,6 +143,19 @@ export class BoosterDisplay {
                 }, index * 200);
             });
         });
+
+        const skipButton = document.createElement('div');
+        skipButton.className = 'skip-hint';
+        skipButton.innerHTML = `
+                Click to skip or use <div class="kbd"><div class="kbd-text">Esc</div></div>`;
+        skipButton.addEventListener('click', () => {
+            overlay.classList.remove('active');
+            setTimeout(() => {
+                overlay.remove();
+                this.render();
+            }, 300);
+        });
+        cardsContainer.appendChild(skipButton);
 
         overlay.addEventListener('click', () => {
             overlay.classList.remove('active');
