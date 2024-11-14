@@ -1370,6 +1370,26 @@ html, body {
     padding: 1rem;
 }
 
+.card-container {
+    margin: var(--spacing-xs);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    height: 100%;
+    position: relative;
+}
+
+.card-details {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+    background-color: var(--color-hover);
+    height: 7rem;
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-xl);
+}
+
 .stats-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 }
@@ -1604,22 +1624,6 @@ html, body {
     background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
     padding: 1rem;
     color: white;
-}
-
-.card-details {
-    display: none;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.9);
-    margin: 1rem;
-    color: white;
-}
-
-.card:hover .card-details {
-    display: block;
 }
 
 .placeholder {

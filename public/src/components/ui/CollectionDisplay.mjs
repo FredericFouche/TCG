@@ -72,6 +72,7 @@ export class CollectionDisplay {
                 <h2>Vos Cartes</h2>
                 <div class="cards-grid">
                     ${cards.map(card => `
+<div class="card-container">
                         <div class="card ${card.rarity}" data-card-id="${card.id}">
                             <div class="card-image-container">
                                 <img src="${card.image}" alt="${card.name}" class="card-image" />
@@ -87,12 +88,11 @@ export class CollectionDisplay {
                                     </div>
                                 </div>
                             </div>
-                            <div class="card-details">
-                                <p class="card-description">${card.description}</p>
-                                <p>Acquis le : ${new Date(card.acquiredDate).toLocaleDateString()}</p>
-                                <p>Valeur : ¤ ${card.getCurrentValue()}</p>
-                            </div>
                         </div>
+                        <div class="card-details">
+                            <p class="card-description">${card.description}</p>
+                            <p>Acquis le : ${new Date(card.acquiredDate).toLocaleDateString()}</p>
+                        </div></div>
                     `).join('')}
                 </div>
             </div>
